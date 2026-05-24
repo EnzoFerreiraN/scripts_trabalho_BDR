@@ -1,0 +1,5 @@
+dados/
+venv/
+camara.db
+camara.db-shm  
+camra.db-wal
