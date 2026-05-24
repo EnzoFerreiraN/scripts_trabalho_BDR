@@ -1,6 +1,6 @@
 import sqlite3
 
-DB_PATH = "camara.db"
+DB_PATH = "camara-2023-2026.db"
 URL_TEMPLATE = "https://www.camara.leg.br/internet/deputado/bandep/{id}.jpg"
 
 conn = sqlite3.connect(DB_PATH)

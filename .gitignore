@@ -1,5 +1,7 @@
 dados/
 venv/
-camara.db
-camara.db-shm  
-camra.db-wal
+camara.db*
+dados.zip
+camara-2023-2026.db
+camara-2023-2026.db-shm
+camara-2023-2026.db-wal
