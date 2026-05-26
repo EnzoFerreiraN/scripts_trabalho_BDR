@@ -522,7 +522,7 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
    c. Nº de proposições;
    d. Presença em eventos;
    e. Presença no plenário.
-7. Ordenar por influência. Calcular o % de propostas aprovadas pelo deputado. O % é em relação ao total de propostas apresentadas no plenário.
+8. Ordenar por influência. Calcular o % de propostas aprovadas pelo deputado. O % é em relação ao total de propostas apresentadas no plenário.
 
 ---
 
