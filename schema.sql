@@ -108,10 +108,10 @@ CREATE TABLE IF NOT EXISTS votacao (
 
 CREATE TABLE IF NOT EXISTS gasto (
     ideDocumento              INTEGER PRIMARY KEY,
-    nuDeputadoId              INTEGER REFERENCES deputado(id),
+    nuDeputadoId              INTEGER,
     txNomeParlamentar         TEXT    NOT NULL,
     cpf                       TEXT,
-    ideCadastro               INTEGER,
+    idDeCadastro              INTEGER REFERENCES deputado(id),
     nuCarteiraParlamentar     INTEGER,
     nuLegislatura             INTEGER NOT NULL,
     sgUF                      TEXT,
@@ -224,7 +224,7 @@ CREATE TABLE IF NOT EXISTS classificacao (
 -- Índices para colunas FK (melhora performance dos JOINs)
 -- ============================================================
 
-CREATE INDEX IF NOT EXISTS idx_gasto_deputado    ON gasto(nuDeputadoId);
+CREATE INDEX IF NOT EXISTS idx_gasto_deputado    ON gasto(idDeCadastro);
 CREATE INDEX IF NOT EXISTS idx_votacao_evento    ON votacao(idEvento);
 CREATE INDEX IF NOT EXISTS idx_voto_votacao      ON voto(idVotacao);
 CREATE INDEX IF NOT EXISTS idx_voto_deputado     ON voto(deputado_id);

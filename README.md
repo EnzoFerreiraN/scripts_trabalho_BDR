@@ -43,10 +43,10 @@ erDiagram
 
     GASTO {
         INTEGER ideDocumento PK "Identificador interno do documento comprobatório"
-        INTEGER nuDeputadoId FK "Identificador do deputado que realizou a despesa"
+        INTEGER idDeCadastro FK "Identificador de cadastro do deputado (FK → deputado.id)"
         VARCHAR txNomeParlamentar "Nome do parlamentar ou órgão beneficiário"
         VARCHAR cpf "CPF do parlamentar beneficiário"
-        INTEGER ideCadastro "Identificador interno de cadastro"
+        INTEGER nuDeputadoId "Identificador do deputado que realizou a despesa"
         INTEGER nuCarteiraParlamentar "Número da carteira parlamentar"
         INTEGER nuLegislatura "Número da legislatura do gasto"
         CHAR sgUF "UF do deputado no momento da despesa"
@@ -257,22 +257,22 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 
 | Campo | Tipo | Tamanho | Chave | Null? | Descrição |
 |---|---|---|---|---|---|
-| uri | VARCHAR | 200 | NÃO | NÃO | Endereço completo do recurso na API. |
-| nome | VARCHAR | 100 | NÃO | NÃO | Nome parlamentar adotado na legislatura. |
-| idLegislaturaInicial | INTEGER | — | SIM | SIM | Primeira legislatura do deputado. |
-| idLegislaturaFinal | INTEGER | — | SIM | SIM | Última legislatura (ou atual). |
-| nomeCivil | VARCHAR | 100 | SIM | SIM | Nome civil completo conforme documentos oficiais. |
-| cpf | VARCHAR | 11 | SIM | SIM | CPF do deputado sem pontuação. |
-| siglaSexo | CHAR | 1 | SIM | SIM | Sexo do parlamentar. |
-| urlRedeSocial | VARCHAR | 500 | SIM | SIM | URLs de redes sociais (pode conter múltiplas). |
-| urlWebsite | VARCHAR | 500 | SIM | SIM | Site pessoal do deputado. |
-| dataNascimento | DATE | — | SIM | SIM | Data de nascimento. |
-| dataFalecimento | DATE | — | SIM | SIM | Data de falecimento, se aplicável. |
-| ufNascimento | CHAR | 2 | SIM | SIM | UF onde o deputado nasceu. |
-| municipioNascimento | VARCHAR | 100 | SIM | SIM | Cidade de nascimento. |
-| escolaridade | VARCHAR | 80 | SIM | SIM | Grau de escolaridade autodeclarado. |
+| uri | VARCHAR | 200 |  | NÃO | Endereço completo do recurso na API. |
+| nome | VARCHAR | 100 |  | NÃO | Nome parlamentar adotado na legislatura. |
+| idLegislaturaInicial | INTEGER | — |  | SIM | Primeira legislatura do deputado. |
+| idLegislaturaFinal | INTEGER | — |  | SIM | Última legislatura (ou atual). |
+| nomeCivil | VARCHAR | 100 |  | SIM | Nome civil completo conforme documentos oficiais. |
+| cpf | VARCHAR | 11 |  | SIM | CPF do deputado sem pontuação. |
+| siglaSexo | CHAR | 1 |  | SIM | Sexo do parlamentar. |
+| urlRedeSocial | VARCHAR | 500 |  | SIM | URLs de redes sociais (pode conter múltiplas). |
+| urlWebsite | VARCHAR | 500 |  | SIM | Site pessoal do deputado. |
+| dataNascimento | DATE | — |  | SIM | Data de nascimento. |
+| dataFalecimento | DATE | — |  | SIM | Data de falecimento, se aplicável. |
+| ufNascimento | CHAR | 2 |  | SIM | UF onde o deputado nasceu. |
+| municipioNascimento | VARCHAR | 100 |  | SIM | Cidade de nascimento. |
+| escolaridade | VARCHAR | 80 |  | SIM | Grau de escolaridade autodeclarado. |
 | id | INTEGER | — | PK | NÃO | Identificador numérico único do deputado (calculado). |
-| urlFoto | VARCHAR | 200 | — | SIM | Endereço da foto do deputado. |
+| urlFoto | VARCHAR | 200 |  | SIM | Endereço da foto do deputado. |
 
 ---
 
@@ -281,37 +281,37 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 | Campo | Tipo | Tamanho | Chave | Null? | Descrição |
 |---|---|---|---|---|---|
 | ideDocumento | INTEGER | — | PK | NÃO | Identificador interno do documento comprobatório. |
-| nuDeputadoId | INTEGER | — | FK → deputado.id | SIM | Identificador do deputado que realizou a despesa. |
-| txNomeParlamentar | VARCHAR | 100 | NÃO | NÃO | Nome do parlamentar ou órgão beneficiário. |
-| cpf | VARCHAR | 11 | SIM | SIM | CPF do parlamentar beneficiário. |
-| ideCadastro | INTEGER | — | SIM | SIM | Identificador interno de cadastro. |
-| nuCarteiraParlamentar | INTEGER | — | SIM | SIM | Número da carteira parlamentar. |
-| nuLegislatura | INTEGER | — | NÃO | NÃO | Número da legislatura do gasto. |
-| sgUF | CHAR | 2 | SIM | SIM | UF do deputado no momento da despesa. |
-| sgPartido | VARCHAR | 20 | SIM | SIM | Partido do deputado no momento da despesa. |
-| codLegislatura | INTEGER | — | NÃO | NÃO | Código numérico da legislatura. |
-| numSubCota | INTEGER | — | NÃO | NÃO | Código da categoria de despesa. |
-| txtDescricao | VARCHAR | 200 | NÃO | NÃO | Descrição da categoria de despesa CEAP. |
-| numEspecificacaoSubCota | INTEGER | — | SIM | SIM | Código de especificação adicional da subcota. |
-| txtDescricaoEspecificacao | VARCHAR | 200 | SIM | SIM | Descrição da especificação da subcota. |
-| txtFornecedor | VARCHAR | 200 | NÃO | NÃO | Nome do fornecedor conforme nota fiscal. |
-| txtCNPJCPF | VARCHAR | 18 | SIM | SIM | CNPJ ou CPF do fornecedor com pontuação. |
-| txtNumero | VARCHAR | 50 | NÃO | NÃO | Número do documento fiscal. |
-| indTipoDocumento | INTEGER | — | SIM | SIM | Tipo de documento. |
-| datEmissao | DATETIME | — | NÃO | NÃO | Data de emissão do documento fiscal. |
-| vlrDocumento | DECIMAL | 10,2 | NÃO | NÃO | Valor de face do documento. |
-| vlrGlosa | DECIMAL | 10,2 | NÃO | NÃO | Valor retido não coberto pela CEAP. |
-| vlrLiquido | DECIMAL | 10,2 | NÃO | NÃO | Valor efetivamente debitado da cota parlamentar. |
-| numMes | INTEGER | — | NÃO | NÃO | Mês de competência financeira. |
-| numAno | INTEGER | — | NÃO | NÃO | Ano de competência financeira. |
-| numParcela | INTEGER | — | NÃO | NÃO | Número da parcela. |
-| txtPassageiro | VARCHAR | 100 | SIM | SIM | Nome do passageiro em registros de viagem. |
-| txtTrecho | VARCHAR | 200 | SIM | SIM | Trecho da viagem (padrão IATA). |
-| numLote | INTEGER | — | SIM | SIM | Número do lote de processamento. |
-| numRessarcimento | INTEGER | — | SIM | SIM | Número do ressarcimento no lote. |
-| datPagamentoRestituicao | DATETIME | — | SIM | SIM | Data de pagamento de restituição à Câmara. |
-| vlrRestituicao | DECIMAL | 10,2 | SIM | SIM | Valor devolvido à Câmara. |
-| urlDocumento | VARCHAR | 500 | SIM | SIM | Link para o PDF da despesa. |
+| idDeCadastro | INTEGER | — | FK → deputado.id | SIM | Identificador interno de cadastro. |
+| nuDeputadoId | INTEGER | — |  | SIM | Identificador do deputado que realizou a despesa. |
+| txNomeParlamentar | VARCHAR | 100 |  | NÃO | Nome do parlamentar ou órgão beneficiário. |
+| cpf | VARCHAR | 11 |  | SIM | CPF do parlamentar beneficiário. |
+| nuCarteiraParlamentar | INTEGER | — |  | SIM | Número da carteira parlamentar. |
+| nuLegislatura | INTEGER | — |  | NÃO | Número da legislatura do gasto. |
+| sgUF | CHAR | 2 |  | SIM | UF do deputado no momento da despesa. |
+| sgPartido | VARCHAR | 20 |  | SIM | Partido do deputado no momento da despesa. |
+| codLegislatura | INTEGER | — |  | NÃO | Código numérico da legislatura. |
+| numSubCota | INTEGER | — |  | NÃO | Código da categoria de despesa. |
+| txtDescricao | VARCHAR | 200 |  | NÃO | Descrição da categoria de despesa CEAP. |
+| numEspecificacaoSubCota | INTEGER | — |  | SIM | Código de especificação adicional da subcota. |
+| txtDescricaoEspecificacao | VARCHAR | 200 |  | SIM | Descrição da especificação da subcota. |
+| txtFornecedor | VARCHAR | 200 |  | NÃO | Nome do fornecedor conforme nota fiscal. |
+| txtCNPJCPF | VARCHAR | 18 |  | SIM | CNPJ ou CPF do fornecedor com pontuação. |
+| txtNumero | VARCHAR | 50 |  | NÃO | Número do documento fiscal. |
+| indTipoDocumento | INTEGER | — |  | SIM | Tipo de documento. |
+| datEmissao | DATETIME | — |  | NÃO | Data de emissão do documento fiscal. |
+| vlrDocumento | DECIMAL | 10,2 |  | NÃO | Valor de face do documento. |
+| vlrGlosa | DECIMAL | 10,2 |  | NÃO | Valor retido não coberto pela CEAP. |
+| vlrLiquido | DECIMAL | 10,2 |  | NÃO | Valor efetivamente debitado da cota parlamentar. |
+| numMes | INTEGER | — |  | NÃO | Mês de competência financeira. |
+| numAno | INTEGER | — |  | NÃO | Ano de competência financeira. |
+| numParcela | INTEGER | — |  | NÃO | Número da parcela. |
+| txtPassageiro | VARCHAR | 100 |  | SIM | Nome do passageiro em registros de viagem. |
+| txtTrecho | VARCHAR | 200 |  | SIM | Trecho da viagem (padrão IATA). |
+| numLote | INTEGER | — |  | SIM | Número do lote de processamento. |
+| numRessarcimento | INTEGER | — |  | SIM | Número do ressarcimento no lote. |
+| datPagamentoRestituicao | DATETIME | — |  | SIM | Data de pagamento de restituição à Câmara. |
+| vlrRestituicao | DECIMAL | 10,2 |  | SIM | Valor devolvido à Câmara. |
+| urlDocumento | VARCHAR | 500 |  | SIM | Link para o PDF da despesa. |
 
 ---
 
@@ -320,18 +320,18 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 | Campo | Tipo | Tamanho | Chave | Null? | Descrição |
 |---|---|---|---|---|---|
 | id | INTEGER | — | PK | NÃO | Identificador único do evento. |
-| uri | VARCHAR | 200 | NÃO | NÃO | URI do evento na API. |
-| urlDocumentoPauta | VARCHAR | 500 | SIM | SIM | URL da pauta em PDF. |
-| dataHoraInicio | DATETIME | — | SIM | SIM | Data e hora de início. |
-| dataHoraFim | DATETIME | — | SIM | SIM | Data e hora de encerramento. |
-| situacao | VARCHAR | 50 | NÃO | NÃO | Status do evento. |
-| descricao | TEXT | — | SIM | SIM | Descrição ou pauta do evento. |
-| descricaoTipo | VARCHAR | 100 | NÃO | NÃO | Tipo do evento. |
-| localExterno | VARCHAR | 200 | SIM | SIM | Local externo ao complexo da Câmara. |
-| localCamara.nome | VARCHAR | 200 | SIM | SIM | Nome do local dentro da Câmara. |
-| localCamara.predio | VARCHAR | 50 | SIM | SIM | Prédio do local. |
-| localCamara.sala | VARCHAR | 20 | SIM | SIM | Sala ou plenário. |
-| localCamara.andar | VARCHAR | 20 | SIM | SIM | Andar do local. |
+| uri | VARCHAR | 200 |  | NÃO | URI do evento na API. |
+| urlDocumentoPauta | VARCHAR | 500 |  | SIM | URL da pauta em PDF. |
+| dataHoraInicio | DATETIME | — |  | SIM | Data e hora de início. |
+| dataHoraFim | DATETIME | — |  | SIM | Data e hora de encerramento. |
+| situacao | VARCHAR | 50 |  | NÃO | Status do evento. |
+| descricao | TEXT | — |  | SIM | Descrição ou pauta do evento. |
+| descricaoTipo | VARCHAR | 100 |  | NÃO | Tipo do evento. |
+| localExterno | VARCHAR | 200 |  | SIM | Local externo ao complexo da Câmara. |
+| localCamara.nome | VARCHAR | 200 |  | SIM | Nome do local dentro da Câmara. |
+| localCamara.predio | VARCHAR | 50 |  | SIM | Prédio do local. |
+| localCamara.sala | VARCHAR | 20 |  | SIM | Sala ou plenário. |
+| localCamara.andar | VARCHAR | 20 |  | SIM | Andar do local. |
 
 ---
 
@@ -340,25 +340,25 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 | Campo | Tipo | Tamanho | Chave | Null? | Descrição |
 |---|---|---|---|---|---|
 | id | VARCHAR | 20 | PK | NÃO | Identificador único da votação. |
-| uri | VARCHAR | 200 | NÃO | NÃO | URI da votação na API. |
-| data | DATE | — | NÃO | NÃO | Data da votação. |
-| dataHoraRegistro | DATETIME | — | NÃO | NÃO | Data e hora exata do registro. |
-| idOrgao | INTEGER | — | NÃO | NÃO | Código do órgão responsável. |
-| uriOrgao | VARCHAR | 200 | NÃO | NÃO | URI do órgão. |
-| siglaOrgao | VARCHAR | 10 | NÃO | NÃO | Sigla do órgão. |
+| uri | VARCHAR | 200 |  | NÃO | URI da votação na API. |
+| data | DATE | — |  | NÃO | Data da votação. |
+| dataHoraRegistro | DATETIME | — |  | NÃO | Data e hora exata do registro. |
+| idOrgao | INTEGER | — |  | NÃO | Código do órgão responsável. |
+| uriOrgao | VARCHAR | 200 |  | NÃO | URI do órgão. |
+| siglaOrgao | VARCHAR | 10 |  | NÃO | Sigla do órgão. |
 | idEvento | INTEGER | — | FK → evento.id | NÃO | Evento/sessão que sediou a votação. |
-| uriEvento | VARCHAR | 200 | NÃO | NÃO | URI do evento associado. |
-| aprovacao | INTEGER | — | SIM | SIM | Resultado da votação. |
-| votosSim | INTEGER | — | SIM | SIM | Total de votos 'Sim'. |
-| votosNao | INTEGER | — | SIM | SIM | Total de votos 'Não'. |
-| votosOutros | INTEGER | — | SIM | SIM | Total de abstenções e outros. |
-| descricao | TEXT | — | SIM | SIM | Descrição do objeto votado. |
-| ultimaAberturaVotacao_dataHoraRegistro | DATETIME | — | SIM | SIM | Momento da última abertura. |
-| ultimaAberturaVotacao_descricao | VARCHAR | 200 | SIM | SIM | Descrição da última abertura. |
-| ultimaApresentacaoProposicao_dataHoraRegistro | DATETIME | — | SIM | SIM | Momento da apresentação da proposição. |
-| ultimaApresentacaoProposicao_descricao | TEXT | — | SIM | SIM | Descrição da apresentação. |
-| ultimaApresentacaoProposicao_idProposicao | INTEGER | — | SIM | SIM | ID da proposição votada. |
-| ultimaApresentacaoProposicao_uriProposicao | VARCHAR | 200 | SIM | SIM | URI da proposição. |
+| uriEvento | VARCHAR | 200 |  | NÃO | URI do evento associado. |
+| aprovacao | INTEGER | — |  | SIM | Resultado da votação. |
+| votosSim | INTEGER | — |  | SIM | Total de votos 'Sim'. |
+| votosNao | INTEGER | — |  | SIM | Total de votos 'Não'. |
+| votosOutros | INTEGER | — |  | SIM | Total de abstenções e outros. |
+| descricao | TEXT | — |  | SIM | Descrição do objeto votado. |
+| ultimaAberturaVotacao_dataHoraRegistro | DATETIME | — |  | SIM | Momento da última abertura. |
+| ultimaAberturaVotacao_descricao | VARCHAR | 200 |  | SIM | Descrição da última abertura. |
+| ultimaApresentacaoProposicao_dataHoraRegistro | DATETIME | — |  | SIM | Momento da apresentação da proposição. |
+| ultimaApresentacaoProposicao_descricao | TEXT | — |  | SIM | Descrição da apresentação. |
+| ultimaApresentacaoProposicao_idProposicao | INTEGER | — |  | SIM | ID da proposição votada. |
+| ultimaApresentacaoProposicao_uriProposicao | VARCHAR | 200 |  | SIM | URI da proposição. |
 
 ---
 
@@ -367,33 +367,33 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 | Campo | Tipo | Tamanho | Chave | Null? | Descrição |
 |---|---|---|---|---|---|
 | id | INTEGER | — | PK | NÃO | Identificador único da proposição. |
-| uri | VARCHAR | 200 | NÃO | NÃO | URI da proposição na API. |
-| siglaTipo | VARCHAR | 10 | NÃO | NÃO | Tipo da proposição. |
-| numero | INTEGER | — | NÃO | NÃO | Número sequencial no ano. |
-| ano | INTEGER | — | NÃO | NÃO | Ano de apresentação. |
-| codTipo | INTEGER | — | NÃO | NÃO | Código numérico do tipo. |
-| descricaoTipo | VARCHAR | 100 | NÃO | NÃO | Descrição textual do tipo. |
-| ementa | TEXT | — | SIM | SIM | Ementa resumida da proposição. |
-| ementaDetalhada | TEXT | — | SIM | SIM | Ementa detalhada. Pode conter HTML. |
-| keywords | VARCHAR | 500 | SIM | SIM | Palavras-chave separadas por vírgula. |
-| dataApresentacao | DATETIME | — | SIM | SIM | Data e hora de apresentação formal. |
-| uriOrgaoNumerador | VARCHAR | 200 | SIM | SIM | URI do órgão numerador. |
-| uriPropAnterior | VARCHAR | 200 | SIM | SIM | URI da proposição anterior. |
-| uriPropPrincipal | VARCHAR | 200 | SIM | SIM | URI da proposição principal. |
-| uriPropPosterior | VARCHAR | 200 | SIM | SIM | URI da proposição posterior. |
-| urlInteiroTeor | VARCHAR | 500 | SIM | SIM | Link para o texto completo. |
-| urnFinal | VARCHAR | 100 | SIM | SIM | URN final da proposição. |
-| ultimoStatus_dataHora | DATETIME | — | SIM | SIM | Data/hora do último status. |
-| ultimoStatus_sequencia | INTEGER | — | SIM | SIM | Sequência do status. |
-| ultimoStatus_uriRelator | VARCHAR | 200 | SIM | SIM | URI do relator. |
-| ultimoStatus_idOrgao | INTEGER | — | SIM | SIM | Código do órgão atual. |
-| ultimoStatus_siglaOrgao | VARCHAR | 20 | SIM | SIM | Sigla do órgão. |
-| ultimoStatus_uriOrgao | VARCHAR | 200 | SIM | SIM | URI do órgão. |
-| ultimoStatus_regime | VARCHAR | 100 | SIM | SIM | Regime de tramitação. |
-| ultimoStatus_descricaoTramitacao | TEXT | — | SIM | SIM | Descrição da tramitação. |
-| ultimoStatus_idTipoTramitacao | INTEGER | — | SIM | SIM | Código do tipo de tramitação. |
-| ultimoStatus_descricaoSituacao | VARCHAR | 100 | SIM | SIM | Situação atual. |
-| ultimoStatus_idSituacao | INTEGER | — | SIM | SIM | Código da situação. |
+| uri | VARCHAR | 200 |  | NÃO | URI da proposição na API. |
+| siglaTipo | VARCHAR | 10 |  | NÃO | Tipo da proposição. |
+| numero | INTEGER | — |  | NÃO | Número sequencial no ano. |
+| ano | INTEGER | — |  | NÃO | Ano de apresentação. |
+| codTipo | INTEGER | — |  | NÃO | Código numérico do tipo. |
+| descricaoTipo | VARCHAR | 100 |  | NÃO | Descrição textual do tipo. |
+| ementa | TEXT | — |  | SIM | Ementa resumida da proposição. |
+| ementaDetalhada | TEXT | — |  | SIM | Ementa detalhada. Pode conter HTML. |
+| keywords | VARCHAR | 500 |  | SIM | Palavras-chave separadas por vírgula. |
+| dataApresentacao | DATETIME | — |  | SIM | Data e hora de apresentação formal. |
+| uriOrgaoNumerador | VARCHAR | 200 |  | SIM | URI do órgão numerador. |
+| uriPropAnterior | VARCHAR | 200 |  | SIM | URI da proposição anterior. |
+| uriPropPrincipal | VARCHAR | 200 |  | SIM | URI da proposição principal. |
+| uriPropPosterior | VARCHAR | 200 |  | SIM | URI da proposição posterior. |
+| urlInteiroTeor | VARCHAR | 500 |  | SIM | Link para o texto completo. |
+| urnFinal | VARCHAR | 100 |  | SIM | URN final da proposição. |
+| ultimoStatus_dataHora | DATETIME | — |  | SIM | Data/hora do último status. |
+| ultimoStatus_sequencia | INTEGER | — |  | SIM | Sequência do status. |
+| ultimoStatus_uriRelator | VARCHAR | 200 |  | SIM | URI do relator. |
+| ultimoStatus_idOrgao | INTEGER | — |  | SIM | Código do órgão atual. |
+| ultimoStatus_siglaOrgao | VARCHAR | 20 |  | SIM | Sigla do órgão. |
+| ultimoStatus_uriOrgao | VARCHAR | 200 |  | SIM | URI do órgão. |
+| ultimoStatus_regime | VARCHAR | 100 |  | SIM | Regime de tramitação. |
+| ultimoStatus_descricaoTramitacao | TEXT | — |  | SIM | Descrição da tramitação. |
+| ultimoStatus_idTipoTramitacao | INTEGER | — |  | SIM | Código do tipo de tramitação. |
+| ultimoStatus_descricaoSituacao | VARCHAR | 100 |  | SIM | Situação atual. |
+| ultimoStatus_idSituacao | INTEGER | — |  | SIM | Código da situação. |
 
 ---
 
@@ -402,8 +402,8 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 | Campo | Tipo | Tamanho | Chave | Null? | Descrição |
 |---|---|---|---|---|---|
 | codTema | INTEGER | — | PK | NÃO | Código numérico do tema. |
-| tema | VARCHAR | 100 | NÃO | NÃO | Nome descritivo da área temática. |
-| relevancia | INTEGER | — | SIM | SIM | Nível de relevância do tema. |
+| tema | VARCHAR | 100 |  | NÃO | Nome descritivo da área temática. |
+| relevancia | INTEGER | — |  | SIM | Nível de relevância do tema. |
 
 ---
 
@@ -412,7 +412,7 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 | Campo | Tipo | Tamanho | Chave | Null? | Descrição |
 |---|---|---|---|---|---|
 | siglaBancada | VARCHAR | 20 | PK | NÃO | Sigla da bancada ou partido. |
-| uriBancada | VARCHAR | 200 | SIM | SIM | URI da bancada na API. |
+| uriBancada | VARCHAR | 200 |  | SIM | URI da bancada na API. |
 
 ---
 
@@ -422,9 +422,9 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 |---|---|---|---|---|---|
 | idEvento | INTEGER | — | FK → evento.id | NÃO | Identificador do evento. |
 | idDeputado | INTEGER | — | FK → deputado.id | NÃO | Identificador do deputado presente. |
-| data | DATETIME | — | SIM | SIM | Data/hora do início do evento. |
-| uriEvento | VARCHAR | 200 | SIM | SIM | URI do evento. |
-| uriDeputado | VARCHAR | 200 | SIM | SIM | URI do deputado. |
+| data | DATETIME | — |  | SIM | Data/hora do início do evento. |
+| uriEvento | VARCHAR | 200 |  | SIM | URI do evento. |
+| uriDeputado | VARCHAR | 200 |  | SIM | URI do deputado. |
 
 ---
 
@@ -434,13 +434,13 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 |---|---|---|---|---|---|
 | idVotacao | VARCHAR | 20 | FK → votacao.id | NÃO | Votação em que o voto foi registrado. |
 | deputado_id | INTEGER | — | FK → deputado.id | NÃO | Deputado que emitiu o voto. |
-| voto | VARCHAR | 10 | SIM | SIM | Voto registrado. |
-| dataHoraVoto | DATETIME | — | SIM | SIM | Data e hora exata do registro. |
-| deputado_uri | VARCHAR | — | SIM | SIM | URI do deputado. |
-| deputado_nome | VARCHAR | — | SIM | SIM | Nome do deputado no momento do voto. |
-| deputado_siglaPartido | VARCHAR | — | SIM | SIM | Partido no momento do voto. |
-| deputado_siglaUf | CHAR | 2 | SIM | SIM | UF do deputado. |
-| deputado_urlFoto | VARCHAR | — | SIM | SIM | URL da foto. |
+| voto | VARCHAR | 10 |  | SIM | Voto registrado. |
+| dataHoraVoto | DATETIME | — |  | SIM | Data e hora exata do registro. |
+| deputado_uri | VARCHAR | — |  | SIM | URI do deputado. |
+| deputado_nome | VARCHAR | — |  | SIM | Nome do deputado no momento do voto. |
+| deputado_siglaPartido | VARCHAR | — |  | SIM | Partido no momento do voto. |
+| deputado_siglaUf | CHAR | 2 |  | SIM | UF do deputado. |
+| deputado_urlFoto | VARCHAR | — |  | SIM | URL da foto. |
 
 ---
 
@@ -450,15 +450,15 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 |---|---|---|---|---|---|
 | idVotacao | VARCHAR | 20 | FK → votacao.id | NÃO | Votação que deliberou sobre a proposição. |
 | proposicao_id | INTEGER | — | FK → proposicao.id | NÃO | Proposição que entrou em pauta. |
-| data | DATE | — | SIM | SIM | Data da votação. |
-| descricao | VARCHAR | 200 | SIM | SIM | Descrição do objeto votado. |
-| proposicao_uri | VARCHAR | 200 | SIM | SIM | URI da proposição. |
-| proposicao_titulo | VARCHAR | 100 | SIM | SIM | Título da proposição. |
-| proposicao_ementa | TEXT | — | SIM | SIM | Ementa da proposição. |
-| proposicao_codTipo | INTEGER | — | SIM | SIM | Código do tipo. |
-| proposicao_siglaTipo | VARCHAR | 20 | SIM | SIM | Sigla do tipo. |
-| proposicao_numero | INTEGER | — | SIM | SIM | Número da proposição. |
-| proposicao_ano | INTEGER | — | SIM | SIM | Ano da proposição. |
+| data | DATE | — |  | SIM | Data da votação. |
+| descricao | VARCHAR | 200 |  | SIM | Descrição do objeto votado. |
+| proposicao_uri | VARCHAR | 200 |  | SIM | URI da proposição. |
+| proposicao_titulo | VARCHAR | 100 |  | SIM | Título da proposição. |
+| proposicao_ementa | TEXT | — |  | SIM | Ementa da proposição. |
+| proposicao_codTipo | INTEGER | — |  | SIM | Código do tipo. |
+| proposicao_siglaTipo | VARCHAR | 20 |  | SIM | Sigla do tipo. |
+| proposicao_numero | INTEGER | — |  | SIM | Número da proposição. |
+| proposicao_ano | INTEGER | — |  | SIM | Ano da proposição. |
 
 ---
 
@@ -468,11 +468,11 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 |---|---|---|---|---|---|
 | idVotacao | VARCHAR | 20 | FK → votacao.id | NÃO | Votação à qual a orientação se refere. |
 | siglaBancada | VARCHAR | 20 | FK → bancada.siglaBancada | NÃO | Bancada que emitiu a orientação. |
-| uriVotacao | VARCHAR | 200 | SIM | SIM | URI da votação. |
-| siglaOrgao | VARCHAR | 20 | SIM | SIM | Órgão onde ocorreu. |
-| descricao | TEXT | 200 | SIM | SIM | Descrição da orientação emitida. |
-| uriBancada | VARCHAR | 200 | SIM | SIM | URI da bancada. |
-| orientacao | VARCHAR | 10 | SIM | SIM | Voto orientado pela liderança. |
+| uriVotacao | VARCHAR | 200 |  | SIM | URI da votação. |
+| siglaOrgao | VARCHAR | 20 |  | SIM | Órgão onde ocorreu. |
+| descricao | TEXT | 200 |  | SIM | Descrição da orientação emitida. |
+| uriBancada | VARCHAR | 200 |  | SIM | URI da bancada. |
+| orientacao | VARCHAR | 10 |  | SIM | Voto orientado pela liderança. |
 
 ---
 
@@ -482,16 +482,16 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 |---|---|---|---|---|---|
 | idProposicao | INTEGER | — | FK → proposicao.id | NÃO | Proposição à qual a autoria pertence. |
 | idDeputadoAutor | INTEGER | — | FK → deputado.id | SIM | Deputado que assinou a proposição. |
-| uriProposicao | VARCHAR | 200 | SIM | SIM | URI da proposição. |
-| uriAutor | VARCHAR | 200 | SIM | SIM | URI do autor. |
-| codTipoAutor | INTEGER | — | SIM | SIM | Código do tipo de autor. |
-| tipoAutor | VARCHAR | 100 | SIM | SIM | Descrição do tipo de autor. |
-| nomeAutor | VARCHAR | 100 | SIM | SIM | Nome do autor conforme registrado. |
-| siglaPartidoAutor | VARCHAR | 20 | SIM | SIM | Partido do autor na assinatura. |
-| uriPartidoAutor | VARCHAR | 200 | SIM | SIM | URI do partido do autor. |
-| siglaUFAutor | CHAR | 2 | SIM | SIM | UF do autor. |
-| ordemAssinatura | INTEGER | — | SIM | SIM | Ordem de assinatura. |
-| proponente | INTEGER | — | SIM | SIM | Indicador de proponente. |
+| uriProposicao | VARCHAR | 200 |  | SIM | URI da proposição. |
+| uriAutor | VARCHAR | 200 |  | SIM | URI do autor. |
+| codTipoAutor | INTEGER | — |  | SIM | Código do tipo de autor. |
+| tipoAutor | VARCHAR | 100 |  | SIM | Descrição do tipo de autor. |
+| nomeAutor | VARCHAR | 100 |  | SIM | Nome do autor conforme registrado. |
+| siglaPartidoAutor | VARCHAR | 20 |  | SIM | Partido do autor na assinatura. |
+| uriPartidoAutor | VARCHAR | 200 |  | SIM | URI do partido do autor. |
+| siglaUFAutor | CHAR | 2 |  | SIM | UF do autor. |
+| ordemAssinatura | INTEGER | — |  | SIM | Ordem de assinatura. |
+| proponente | INTEGER | — |  | SIM | Indicador de proponente. |
 
 ---
 
@@ -501,11 +501,11 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 |---|---|---|---|---|---|
 | idProposicao | INTEGER | — | FK → proposicao.id | NÃO | Proposição classificada no tema. |
 | codTema | INTEGER | — | FK → tema.codTema | NÃO | Código do tema associado. |
-| uriProposicao | VARCHAR | — | SIM | SIM | URI da proposição. |
-| siglaTipo | VARCHAR | 20 | SIM | SIM | Tipo da proposição. |
-| numero | INTEGER | — | SIM | SIM | Número da proposição. |
-| ano | INTEGER | — | SIM | SIM | Ano da proposição. |
-| relevancia | INTEGER | — | SIM | SIM | Relevância do tema para esta proposição. |
+| uriProposicao | VARCHAR | — |  | SIM | URI da proposição. |
+| siglaTipo | VARCHAR | 20 |  | SIM | Tipo da proposição. |
+| numero | INTEGER | — |  | SIM | Número da proposição. |
+| ano | INTEGER | — |  | SIM | Ano da proposição. |
+| relevancia | INTEGER | — |  | SIM | Relevância do tema para esta proposição. |
 
 ---
 
@@ -523,3 +523,103 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
    d. Presença em eventos;
    e. Presença no plenário.
 7. Ordenar por influência. Calcular o % de propostas aprovadas pelo deputado. O % é em relação ao total de propostas apresentadas no plenário.
+
+---
+
+## Scripts de Análise
+
+### Q1 — `q1_gastos_deputados.py` — Deputados por gastos totais
+
+**Execução:** `python q1_gastos_deputados.py`
+
+**Método de cálculo:**
+- Junta `deputado` com `gasto` via `idDeCadastro`.
+- Agrupa por deputado (id, nome, partido, UF).
+- Calcula `SUM(vlrLiquido)` como total gasto e `COUNT(ideDocumento)` como número de transações.
+- Ordena pelo total gasto decrescente (top 50).
+
+---
+
+### Q2 — `q2_eixo_atuacao.py` — Eixo de atuação por deputado
+
+**Execução:** `python q2_eixo_atuacao.py`
+
+**Método de cálculo:**
+- **Ranking geral de temas:** junta `tema → classificacao → autoria`, conta proposições distintas e deputados distintos por tema.
+- **Tema dominante por deputado:** via CTE com `ROW_NUMBER() OVER (PARTITION BY d.id ORDER BY COUNT(*) DESC)` — seleciona o tema com maior número de proposições de autoria de cada deputado.
+- Exibe os top 50 deputados por volume de proposições no tema dominante.
+
+---
+
+### Q3 — `q3_votacao_tema.py` — Votos de um deputado em um tema
+
+**Execução:** `python q3_votacao_tema.py <id_deputado> "<tema>"`
+
+Exemplo: `python q3_votacao_tema.py 204554 "Economia"`
+
+**Método de cálculo:**
+- Junta `voto → pauta → classificacao → tema` para recuperar todos os votos do deputado em proposições classificadas no tema informado.
+- Calcula o percentual de cada tipo de voto com a window function:
+  `100.0 * COUNT(*) / SUM(COUNT(*)) OVER (PARTITION BY d.id, t.codTema)`
+- Sem argumentos, lista todos os temas disponíveis.
+
+---
+
+### Q4 — `q4_escolaridade.py` — Distribuição por escolaridade
+
+**Execução:** `python q4_escolaridade.py`
+
+**Método de cálculo:**
+- Agrupa a tabela `deputado` por `escolaridade`.
+- Calcula `COUNT(*)` por grupo e o percentual via window function:
+  `100.0 * COUNT(*) / SUM(COUNT(*)) OVER ()`
+- Valores nulos são exibidos como `(não informado)`.
+
+---
+
+### Q5 — `q5_fornecedores.py` — Fornecedores por valor recebido
+
+**Execução:** `python q5_fornecedores.py`
+
+**Método de cálculo:**
+- Agrupa a tabela `gasto` por `txtFornecedor` e `txtCNPJCPF` (filtrando apenas `vlrLiquido > 0`).
+- Calcula `SUM(vlrLiquido)` como total recebido e `AVG(vlrLiquido)` como ticket médio.
+- Conta transações (`COUNT(*)`) e deputados distintos atendidos (`COUNT(DISTINCT idDeCadastro)`).
+- Ordena pelo total recebido decrescente (top 50).
+
+---
+
+### Q6 — `q6_correlacao_escolaridade.py` — Escolaridade correlacionada
+
+**Execução:** `python q6_correlacao_escolaridade.py`
+
+**Método de cálculo por sub-questão:**
+
+| Sub | Título | Método |
+|---|---|---|
+| **6a** | Gastos | `SUM(vlrLiquido)` e `AVG(vlrLiquido)` agrupados por escolaridade; média por deputado = total / `COUNT(DISTINCT d.id)` |
+| **6b** | Fidelidade Partidária | Junta `voto → orientacao` pelo partido do deputado; `% fidelidade = votos em que voto = orientação / total de votos com orientação` (excluindo orientação `'Liberado'`) |
+| **6c** | Nº de Proposições | `COUNT(autoria)` por escolaridade; média = total / `COUNT(DISTINCT d.id)` via LEFT JOIN para incluir deputados sem proposições |
+| **6d** | Presença em Eventos | `COUNT(presenca)` por escolaridade; média = total / `COUNT(DISTINCT d.id)` via LEFT JOIN |
+| **6e** | Presença no Plenário | Igual ao 6d, porém filtrando apenas eventos com `descricaoTipo = 'Sessão Deliberativa'` via subquery |
+
+---
+
+### Q7 — `q7_influencia.py` — Deputados por influência no Plenário
+
+**Execução:** `python q7_influencia.py`
+
+**Método de cálculo:**
+
+```
+% influência = proposições aprovadas no Plenário de autoria do deputado
+               ─────────────────────────────────────────────────────────
+               total de proposições distintas aprovadas no Plenário
+```
+
+Implementado com três CTEs:
+1. **`plen_aprovadas`** — proposições distintas que foram aprovadas (`aprovacao = 1`) em votações do Plenário (`siglaOrgao = 'PLEN'`).
+2. **`dep_aprovadas`** — para cada deputado, conta quantas dessas proposições ele é coautor via tabela `autoria`.
+3. **`dep_pauta`** — total de proposições do deputado que entraram em pauta no Plenário (aprovadas ou não), para referência.
+
+Ordena pelo `% influência` decrescente (top 50). Só lista deputados com ao menos uma proposição aprovada.

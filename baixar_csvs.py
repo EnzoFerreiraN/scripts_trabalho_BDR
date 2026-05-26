@@ -17,7 +17,7 @@ CSV_TIPOS = {
     "proposicoesAutores":        "proposicoesAutores",
 }
 
-ANO_INICIO = 1990
+ANO_INICIO = 2023
 ANO_FIM = 2026
 
 

@@ -239,7 +239,7 @@ def load_votacoes(conn):
 
 def load_gastos(conn):
     cols = [
-        "ideDocumento", "nuDeputadoId", "txNomeParlamentar", "cpf", "ideCadastro",
+        "ideDocumento", "nuDeputadoId", "txNomeParlamentar", "cpf", "idDeCadastro",
         "nuCarteiraParlamentar", "nuLegislatura", "sgUF", "sgPartido", "codLegislatura",
         "numSubCota", "txtDescricao", "numEspecificacaoSubCota", "txtDescricaoEspecificacao",
         "txtFornecedor", "txtCNPJCPF", "txtNumero", "indTipoDocumento", "datEmissao",
