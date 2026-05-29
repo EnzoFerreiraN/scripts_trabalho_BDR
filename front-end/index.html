@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Câmara dos Deputados — BDR Grupo 7</title>
+  <script src="https://unpkg.com/vue@3.4.0/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #21253a;
+      --border: #2a2d3e;
+      --accent: #4f8ef7;
+      --accent2: #7c5cfc;
+      --text: #e2e6f0;
+      --muted: #8892a4;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.9rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+    header span { color: var(--muted); font-size: 0.82rem; }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    nav button {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.82rem;
+      padding: 0.75rem 1rem;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    nav button:hover { color: var(--text); }
+    nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Layout ── */
+    main { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+    .section-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+    .section-title .q-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.68rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+      font-weight: 700;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .card h3 {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .chart-wrap { position: relative; height: 300px; }
+    .chart-wrap-tall { position: relative; height: 420px; }
+
+    /* ── Stats ── */
+    .stat-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      flex: 1;
+      min-width: 130px;
+    }
+    .stat .val { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+    .stat .lbl { font-size: 0.73rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* ── Deputy cards (top heroes) ── */
+    .deputy-cards {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 1100px) { .deputy-cards { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 700px)  { .deputy-cards { grid-template-columns: repeat(2, 1fr); } }
+
+    .deputy-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      transition: border-color 0.15s, transform 0.15s;
+      position: relative;
+    }
+    .deputy-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .deputy-card-rank {
+      position: absolute;
+      top: 0.6rem;
+      left: 0.6rem;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      font-size: 0.68rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .dc-rank-1 { background: #fbbf24; color: #000; }
+    .dc-rank-2 { background: #9ca3af; color: #000; }
+    .dc-rank-3 { background: #cd7c39; color: #fff; }
+    .dc-rank-n { background: var(--border); color: var(--muted); }
+
+    .deputy-card-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-align: center;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .deputy-card-meta {
+      display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: center;
+    }
+    .deputy-card-value {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+    }
+    .deputy-card-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    /* ── Avatar ── */
+    .avatar {
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+    }
+    .avatar-lg { width: 72px; height: 72px; font-size: 1.3rem; border-width: 3px; }
+    .avatar-sm { width: 34px; height: 34px; font-size: 0.7rem; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .avatar span { color: var(--muted); pointer-events: none; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead th {
+      background: var(--bg);
+      color: var(--muted);
+      font-weight: 600;
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      font-size: 0.73rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+    }
+    tbody tr { border-top: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(79,142,247,0.06); }
+    tbody td { padding: 0.5rem 0.75rem; vertical-align: middle; }
+
+    .td-deputy {
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .td-deputy-name { line-height: 1.3; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .badge-blue   { background: rgba(79,142,247,0.18);  color: var(--accent); }
+    .badge-green  { background: rgba(52,211,153,0.18);  color: var(--green); }
+    .badge-red    { background: rgba(248,113,113,0.18); color: var(--red); }
+    .badge-yellow { background: rgba(251,191,36,0.18);  color: var(--yellow); }
+    .badge-gray   { background: rgba(136,146,164,0.18); color: var(--muted); }
+
+    /* ── Rank numbers ── */
+    .rank-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+    .rank-1 { background: #fbbf24; color: #000; }
+    .rank-2 { background: #9ca3af; color: #000; }
+    .rank-3 { background: #cd7c39; color: #fff; }
+    .rank-n { background: var(--border); color: var(--muted); }
+
+    /* ── Loading / Error ── */
+    .loading {
+      display: flex; align-items: center; justify-content: center;
+      height: 120px; color: var(--muted); font-size: 0.85rem; gap: 0.5rem;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error {
+      padding: 1rem;
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 8px;
+      color: var(--red);
+      font-size: 0.85rem;
+    }
+
+    /* ── Q3 Controls ── */
+    .controls {
+      display: flex; gap: 0.75rem; margin-bottom: 1.5rem;
+      flex-wrap: wrap; align-items: flex-end;
+    }
+    .controls label { font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 0.3rem; }
+    .controls input, .controls select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+      padding: 0.5rem 0.75rem;
+      min-width: 180px;
+    }
+    .controls input:focus, .controls select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    .controls button {
+      background: var(--accent);
+      border: none; border-radius: 6px;
+      color: #fff; cursor: pointer;
+      font-size: 0.85rem; font-weight: 600;
+      padding: 0.5rem 1.25rem; height: 36px;
+      transition: opacity 0.15s;
+    }
+    .controls button:hover { opacity: 0.85; }
+
+    /* ── Q3 Result ── */
+    .q3-hero {
+      display: flex; align-items: center; gap: 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .q3-hero-info .dep-name { font-size: 1.1rem; font-weight: 700; }
+    .q3-hero-info .dep-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.25rem; }
+    .q3-hero-info .dep-total { font-size: 0.9rem; color: var(--green); margin-top: 0.5rem; }
+
+    /* ── Q7 Podium ── */
+    .podium {
+      display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .podium-card {
+      flex: 1; min-width: 160px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1rem;
+      display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+      position: relative;
+    }
+    .podium-card.pos-1 { border-color: #fbbf24; }
+    .podium-card.pos-2 { border-color: #9ca3af; }
+    .podium-card.pos-3 { border-color: #cd7c39; }
+    .podium-medal {
+      font-size: 1.3rem; margin-bottom: 0.2rem;
+    }
+    .podium-name { font-size: 0.85rem; font-weight: 600; text-align: center; }
+    .podium-val  { font-size: 1rem; font-weight: 700; color: var(--accent); }
+    .podium-sub  { font-size: 0.7rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="6" fill="#4f8ef7" opacity=".15"/>
+      <path d="M14 4L24 10V18L14 24L4 18V10L14 4Z" stroke="#4f8ef7" stroke-width="1.5" fill="none"/>
+      <circle cx="14" cy="14" r="3" fill="#4f8ef7"/>
+    </svg>
+    <div>
+      <h1>Câmara dos Deputados</h1>
+      <span>Dashboard de Análise — BDR Grupo 7 · 2023–2026</span>
+    </div>
+  </header>
+
+  <!-- NAV -->
+  <nav>
+    <button
+      v-for="tab in tabs" :key="tab.id"
+      :class="{active: activeTab === tab.id}"
+      @click="showTab(tab.id)"
+    >{{ tab.label }}</button>
+  </nav>
+
+  <main>
+
+    <!-- ══════════════ Q1 ══════════════ -->
+    <div v-show="activeTab === 'q1'">
+      <p class="section-title"><span class="q-badge">Q1</span> Quais deputados mais gastam?</p>
+
+      <div v-if="q1Loading" class="loading"><div class="spinner"></div> Carregando…</div>
+      <div v-else-if="q1Error" class="error">{{ q1Error }}</div>
+      <template v-else-if="q1Data.length">
+
+        <!-- Stats -->
+        <div class="stat-row">
+          <div class="stat">
+            <div class="val">{{ fmtN(q1Data.length) }}</div>
+            <div class="lbl">Deputados com gastos</div>
+          </div>
+          <div class="stat">
+            <div class="val">{{ fmt(q1Total) }}</div>
+            <div class="lbl">Total gasto</div>
+          </div>
+          <div class="stat">
+            <div class="val">{{ fmt(q1Total / q1Data.length) }}</div>
+            <div class="lbl">Média por deputado</div>
+          </div>
+          <div class="stat">
+            <div class="val">{{ fmt(q1Data[0].total_gasto) }}</div>
+            <div class="lbl">Maior gasto individual</div>
+          </div>
+        </div>
+
+        <!-- Top 5 cards -->
+        <div class="deputy-cards">
+          <div class="deputy-card" v-for="(dep, i) in q1Data.slice(0,5)" :key="dep.id">
+            <div class="deputy-card-rank" :class="i < 3 ? 'dc-rank-'+(i+1) : 'dc-rank-n'">{{ i+1 }}</div>
+            <div class="avatar avatar-lg">
+              <img v-if="dep.urlFoto" :src="dep.urlFoto" :alt="dep.nome" @error="dep.urlFoto = null" />
+              <span v-else>{{ initials(dep.nome) }}</span>
+            </div>
+            <div class="deputy-card-name">{{ shortName(dep.nome) }}</div>
+            <div class="deputy-card-meta">
+              <span class="badge badge-blue">{{ dep.partido }}</span>
+              <span class="badge badge-gray">{{ dep.uf }}</span>
+            </div>
+            <div class="deputy-card-value">{{ fmt(dep.total_gasto) }}</div>
+            <div class="deputy-card-sub">{{ fmtN(dep.num_transacoes) }} transações</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid-2" style="margin-bottom:1.5rem">
+          <div class="card">
+            <h3>Top 20 por total gasto</h3>
+            <div class="chart-wrap-tall"><canvas id="chart-q1-bar"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Distribuição por partido (top 50)</h3>
+            <div class="chart-wrap-tall"><canvas id="chart-q1-partido"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+          <h3>Lista completa</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>#</th><th>Deputado</th><th>Partido</th><th>UF</th>
+                <th style="text-align:right">Transações</th>
+                <th style="text-align:right">Total gasto</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="(dep, i) in q1Data" :key="dep.id">
+                  <td><span class="rank-num" :class="i<3 ? 'rank-'+(i+1) : 'rank-n'">{{ i+1 }}</span></td>
+                  <td>
+                    <div class="td-deputy">
+                      <div class="avatar avatar-sm">
+                        <img v-if="dep.urlFoto" :src="dep.urlFoto" :alt="dep.nome" @error="dep.urlFoto = null" />
+                        <span v-else>{{ initials(dep.nome) }}</span>
+                      </div>
+                      <span class="td-deputy-name">{{ dep.nome }}</span>
+                    </div>
+                  </td>
+                  <td><span class="badge badge-blue">{{ dep.partido }}</span></td>
+                  <td>{{ dep.uf }}</td>
+                  <td style="text-align:right">{{ fmtN(dep.num_transacoes) }}</td>
+                  <td style="text-align:right;font-weight:600">{{ fmt(dep.total_gasto) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ══════════════ Q2 ══════════════ -->
+    <div v-show="activeTab === 'q2'">
+      <p class="section-title"><span class="q-badge">Q2</span> Quais os principais eixos de atuação?</p>
+      <div v-if="q2Loading" class="loading"><div class="spinner"></div> Carregando…</div>
+      <template v-else-if="q2Data.length">
+        <div class="grid-2" style="margin-bottom:1.5rem">
+          <div class="card">
+            <h3>Ranking de temas por nº de proposições</h3>
+            <div class="chart-wrap-tall"><canvas id="chart-q2-temas"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Nº de deputados por tema</h3>
+            <div class="chart-wrap-tall"><canvas id="chart-q2-deps"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Tabela de temas</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>#</th><th>Tema</th>
+                <th style="text-align:right">Proposições</th>
+                <th style="text-align:right">Deputados</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="(d, i) in q2Data" :key="d.tema">
+                  <td><span class="rank-num" :class="i<3 ? 'rank-'+(i+1) : 'rank-n'">{{ i+1 }}</span></td>
+                  <td>{{ d.tema }}</td>
+                  <td style="text-align:right">{{ fmtN(d.num_proposicoes) }}</td>
+                  <td style="text-align:right">{{ fmtN(d.num_deputados) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ══════════════ Q3 ══════════════ -->
+    <div v-show="activeTab === 'q3'">
+      <p class="section-title"><span class="q-badge">Q3</span> Como um deputado vota em determinado tema?</p>
+      <div class="controls">
+        <div>
+          <label>ID do Deputado</label>
+          <input v-model="q3DepId" type="number" placeholder="ex: 204554" @keyup.enter="loadQ3" />
+        </div>
+        <div>
+          <label>Tema</label>
+          <select v-model="q3Tema">
+            <option value="">— carregando temas —</option>
+            <option v-for="t in q3Temas" :key="t.codTema" :value="t.tema">{{ t.tema }}</option>
+          </select>
+        </div>
+        <button @click="loadQ3">Buscar</button>
+      </div>
+
+      <div v-if="q3Loading" class="loading"><div class="spinner"></div> Buscando…</div>
+      <div v-else-if="q3Error" class="error">{{ q3Error }}</div>
+      <template v-else-if="q3Result">
+        <!-- Deputy hero -->
+        <div class="q3-hero">
+          <div class="avatar avatar-lg">
+            <img v-if="q3Result.urlFoto" :src="q3Result.urlFoto" :alt="q3Result.nome" @error="q3Result.urlFoto = null" />
+            <span v-else>{{ initials(q3Result.nome) }}</span>
+          </div>
+          <div class="q3-hero-info">
+            <div class="dep-name">{{ q3Result.nome }}</div>
+            <div class="dep-sub">ID {{ q3DepId }}</div>
+            <div class="dep-total">{{ fmtN(q3Result.total) }} votos computados no tema "{{ q3Tema }}"</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3>Distribuição dos votos</h3>
+            <div class="chart-wrap"><canvas id="chart-q3-pie"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Votos por tipo</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Voto</th>
+                  <th style="text-align:right">Quantidade</th>
+                  <th style="text-align:right">%</th>
+                </tr></thead>
+                <tbody>
+                  <tr v-for="d in q3Result.votes" :key="d.voto">
+                    <td>
+                      <span class="badge" :style="{background: voteColor(d.voto)+'22', color: voteColor(d.voto)}">
+                        {{ d.voto }}
+                      </span>
+                    </td>
+                    <td style="text-align:right">{{ fmtN(d.num_votos) }}</td>
+                    <td style="text-align:right">{{ pct(d.pct) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ══════════════ Q4 ══════════════ -->
+    <div v-show="activeTab === 'q4'">
+      <p class="section-title"><span class="q-badge">Q4</span> Distribuição de escolaridade dos deputados</p>
+      <div v-if="q4Loading" class="loading"><div class="spinner"></div> Carregando…</div>
+      <template v-else-if="q4Data.length">
+        <div class="grid-2" style="margin-bottom:1.5rem">
+          <div class="card">
+            <h3>Pizza por escolaridade</h3>
+            <div class="chart-wrap"><canvas id="chart-q4-pie"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Barras — deputados por nível</h3>
+            <div class="chart-wrap"><canvas id="chart-q4-bar"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Escolaridade</th>
+                <th style="text-align:right">Deputados</th>
+                <th style="text-align:right">%</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="d in q4Data" :key="d.escolaridade">
+                  <td>{{ d.escolaridade }}</td>
+                  <td style="text-align:right">{{ fmtN(d.num_deputados) }}</td>
+                  <td style="text-align:right">{{ pct(d.pct) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ══════════════ Q5 ══════════════ -->
+    <div v-show="activeTab === 'q5'">
+      <p class="section-title"><span class="q-badge">Q5</span> Quais os principais fornecedores?</p>
+      <div v-if="q5Loading" class="loading"><div class="spinner"></div> Carregando…</div>
+      <template v-else-if="q5Data.length">
+        <div class="stat-row">
+          <div class="stat">
+            <div class="val">{{ fmtN(q5Data.length) }}</div>
+            <div class="lbl">Fornecedores únicos</div>
+          </div>
+          <div class="stat">
+            <div class="val">{{ fmt(q5Total) }}</div>
+            <div class="lbl">Total pago (top 100)</div>
+          </div>
+          <div class="stat">
+            <div class="val">{{ fmt(q5Data[0].total_recebido) }}</div>
+            <div class="lbl">Maior fornecedor</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:1.5rem">
+          <h3>Top 20 fornecedores por total recebido</h3>
+          <div class="chart-wrap-tall"><canvas id="chart-q5-bar"></canvas></div>
+        </div>
+
+        <div class="card">
+          <h3>Lista de fornecedores</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>#</th><th>Fornecedor</th><th>Categoria</th>
+                <th style="text-align:right">Transações</th>
+                <th style="text-align:right">Deputados</th>
+                <th style="text-align:right">Total recebido</th>
+                <th style="text-align:right">Ticket médio</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="(d, i) in q5Data" :key="d.fornecedor">
+                  <td><span class="rank-num" :class="i<3 ? 'rank-'+(i+1) : 'rank-n'">{{ i+1 }}</span></td>
+                  <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.fornecedor }}</td>
+                  <td><span class="badge badge-yellow">{{ d.categoria || '—' }}</span></td>
+                  <td style="text-align:right">{{ fmtN(d.num_transacoes) }}</td>
+                  <td style="text-align:right">{{ fmtN(d.num_deputados) }}</td>
+                  <td style="text-align:right;font-weight:600">{{ fmt(d.total_recebido) }}</td>
+                  <td style="text-align:right">{{ fmt(d.ticket_medio) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ══════════════ Q6 ══════════════ -->
+    <div v-show="activeTab === 'q6'">
+      <p class="section-title"><span class="q-badge">Q6</span> Correlação entre escolaridade e comportamento parlamentar</p>
+      <div v-if="q6Loading" class="loading"><div class="spinner"></div> Carregando…</div>
+      <template v-else-if="q6Gastos.length">
+        <div class="grid-2" style="margin-bottom:1.5rem">
+          <div class="card">
+            <h3>Média de gasto por nível de escolaridade</h3>
+            <div class="chart-wrap"><canvas id="chart-q6-gastos"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>% Fidelidade partidária por escolaridade</h3>
+            <div class="chart-wrap"><canvas id="chart-q6-fid"></canvas></div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Média de proposições por deputado</h3>
+            <div class="chart-wrap"><canvas id="chart-q6-prop"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Média de presenças no plenário</h3>
+            <div class="chart-wrap"><canvas id="chart-q6-plen"></canvas></div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ══════════════ Q7 ══════════════ -->
+    <div v-show="activeTab === 'q7'">
+      <p class="section-title"><span class="q-badge">Q7</span> Quais deputados têm mais influência?</p>
+      <div v-if="q7Loading" class="loading"><div class="spinner"></div> Carregando…</div>
+      <div v-else-if="q7Error" class="error">{{ q7Error }}</div>
+      <template v-else-if="q7Data.length">
+
+        <!-- Stats -->
+        <div class="stat-row">
+          <div class="stat">
+            <div class="val">{{ fmtN(q7Data.length) }}</div>
+            <div class="lbl">Deputados analisados</div>
+          </div>
+          <div class="stat">
+            <div class="val">{{ pct(q7Data[0].pct_influencia) }}</div>
+            <div class="lbl">Maior % influência</div>
+          </div>
+          <div class="stat">
+            <div class="val">{{ pct(q7Data[0].taxa_aprovacao) }}</div>
+            <div class="lbl">Maior taxa de aprovação</div>
+          </div>
+        </div>
+
+        <!-- Podium top 3 -->
+        <div class="podium" style="margin-bottom:1.5rem">
+          <div
+            v-for="(dep, i) in q7Data.slice(0,3)" :key="dep.nome"
+            class="podium-card" :class="'pos-'+(i+1)"
+          >
+            <div class="podium-medal">{{ ['🥇','🥈','🥉'][i] }}</div>
+            <div class="avatar avatar-lg">
+              <img v-if="dep.urlFoto" :src="dep.urlFoto" :alt="dep.nome" @error="dep.urlFoto = null" />
+              <span v-else>{{ initials(dep.nome) }}</span>
+            </div>
+            <div class="podium-name">{{ shortName(dep.nome) }}</div>
+            <div class="deputy-card-meta">
+              <span class="badge badge-blue">{{ dep.partido }}</span>
+              <span class="badge badge-gray">{{ dep.uf }}</span>
+            </div>
+            <div class="podium-val">{{ pct(dep.pct_influencia) }}</div>
+            <div class="podium-sub">de influência no plenário</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid-2" style="margin-bottom:1.5rem">
+          <div class="card">
+            <h3>Top 20 por % de influência</h3>
+            <div class="chart-wrap-tall"><canvas id="chart-q7-inf"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Taxa de aprovação (top 20)</h3>
+            <div class="chart-wrap-tall"><canvas id="chart-q7-aprov"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+          <h3>Ranking de influência</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>#</th><th>Deputado</th><th>Partido</th><th>UF</th>
+                <th style="text-align:right">Em pauta</th>
+                <th style="text-align:right">Aprovadas</th>
+                <th style="text-align:right">Taxa aprov.</th>
+                <th style="text-align:right">% Influência</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="(dep, i) in q7Data" :key="dep.nome">
+                  <td><span class="rank-num" :class="i<3 ? 'rank-'+(i+1) : 'rank-n'">{{ i+1 }}</span></td>
+                  <td>
+                    <div class="td-deputy">
+                      <div class="avatar avatar-sm">
+                        <img v-if="dep.urlFoto" :src="dep.urlFoto" :alt="dep.nome" @error="dep.urlFoto = null" />
+                        <span v-else>{{ initials(dep.nome) }}</span>
+                      </div>
+                      <span class="td-deputy-name">{{ dep.nome }}</span>
+                    </div>
+                  </td>
+                  <td><span class="badge badge-blue">{{ dep.partido }}</span></td>
+                  <td>{{ dep.uf }}</td>
+                  <td style="text-align:right">{{ fmtN(dep.em_pauta_plen) }}</td>
+                  <td style="text-align:right">{{ fmtN(dep.aprovadas_pelo_dep) }}</td>
+                  <td style="text-align:right">{{ pct(dep.taxa_aprovacao) }}</td>
+                  <td style="text-align:right;font-weight:600">{{ pct(dep.pct_influencia) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const { createApp } = Vue;
+
+const charts = {};
+const API = 'http://localhost:8000';
+
+const PALETTE = [
+  '#4f8ef7','#7c5cfc','#34d399','#fbbf24','#f87171','#38bdf8',
+  '#a78bfa','#fb923c','#4ade80','#f472b6','#60a5fa','#facc15',
+  '#c084fc','#2dd4bf','#fb7185','#a3e635','#818cf8','#e879f9'
+];
+
+const VOTE_COLORS = {
+  'Sim': '#34d399', 'Não': '#f87171',
+  'Abstenção': '#fbbf24', 'Obstrução': '#818cf8', 'Artigo 17': '#fb923c'
+};
+
+const baseFont = { color: '#8892a4', family: "'Segoe UI', sans-serif", size: 11 };
+const gridColor = 'rgba(42,45,62,0.8)';
+
+function fmt(n) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
+}
+function fmtN(n) { return new Intl.NumberFormat('pt-BR').format(n); }
+function pct(n) { return n == null ? '—' : (+n).toFixed(1) + '%'; }
+
+function initials(nome) {
+  return (nome || '').split(' ').filter(w => w.length > 2).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+}
+function shortName(nome) {
+  const p = (nome || '').split(' ');
+  return p.length <= 3 ? nome : p.slice(0, 3).join(' ');
+}
+
+async function apiFetch(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+function mkChart(id, cfg) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  const el = document.getElementById(id);
+  if (!el) return;
+  charts[id] = new Chart(el, cfg);
+}
+
+function hBarCfg(labels, data, fmtFn) {
+  return {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: PALETTE, borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ' ' + (fmtFn ? fmtFn(c.raw) : c.raw) } }
+      },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: '#8892a4', font: baseFont } },
+        y: { grid: { display: false }, ticks: { color: '#e2e6f0', font: { size: 10 } } }
+      }
+    }
+  };
+}
+
+createApp({
+  data() {
+    return {
+      activeTab: 'q1',
+      loaded: new Set(),
+      tabs: [
+        { id: 'q1', label: 'Q1 · Gastos' },
+        { id: 'q2', label: 'Q2 · Temas' },
+        { id: 'q3', label: 'Q3 · Votações' },
+        { id: 'q4', label: 'Q4 · Escolaridade' },
+        { id: 'q5', label: 'Q5 · Fornecedores' },
+        { id: 'q6', label: 'Q6 · Correlações' },
+        { id: 'q7', label: 'Q7 · Influência' },
+      ],
+
+      q1Data: [], q1Loading: false, q1Error: null,
+      q2Data: [], q2Loading: false,
+      q3Temas: [], q3DepId: '', q3Tema: '', q3Result: null, q3Loading: false, q3Error: null,
+      q4Data: [], q4Loading: false,
+      q5Data: [], q5Loading: false,
+      q6Gastos: [], q6Fid: [], q6Prop: [], q6Plen: [], q6Loading: false,
+      q7Data: [], q7Loading: false, q7Error: null,
+    };
+  },
+
+  computed: {
+    q1Total() { return this.q1Data.reduce((s, d) => s + d.total_gasto, 0); },
+    q5Total() { return this.q5Data.reduce((s, d) => s + d.total_recebido, 0); },
+  },
+
+  methods: {
+    fmt, fmtN, pct, initials, shortName,
+    voteColor(v) { return VOTE_COLORS[v] || '#4f8ef7'; },
+
+    showTab(tab) {
+      this.activeTab = tab;
+      if (this.loaded.has(tab)) return;
+      this.loaded.add(tab);
+      const loaders = {
+        q1: this.loadQ1, q2: this.loadQ2, q4: this.loadQ4,
+        q5: this.loadQ5, q6: this.loadQ6, q7: this.loadQ7,
+      };
+      if (loaders[tab]) loaders[tab]();
+      if (tab === 'q3') this.loadQ3Temas();
+    },
+
+    // ── Q1 ────────────────────────────────
+    async loadQ1() {
+      this.q1Loading = true;
+      try {
+        this.q1Data = await apiFetch('/q1/gastos-deputados?limit=200');
+      } catch(e) {
+        this.q1Error = 'Erro ao carregar: ' + e.message;
+      } finally {
+        this.q1Loading = false;
+      }
+      if (!this.q1Data.length) return;
+      await this.$nextTick();
+      this.renderQ1Charts();
+    },
+    renderQ1Charts() {
+      const top20 = this.q1Data.slice(0, 20);
+      const top50 = this.q1Data.slice(0, 50);
+      mkChart('chart-q1-bar', hBarCfg(
+        top20.map(d => shortName(d.nome).split(' ').slice(0,2).join(' ')),
+        top20.map(d => d.total_gasto), fmt
+      ));
+      const byPartido = {};
+      top50.forEach(d => { byPartido[d.partido] = (byPartido[d.partido] || 0) + d.total_gasto; });
+      const sorted = Object.entries(byPartido).sort((a,b) => b[1]-a[1]);
+      mkChart('chart-q1-partido', {
+        type: 'bar',
+        data: {
+          labels: sorted.map(e => e[0]),
+          datasets: [{ data: sorted.map(e => e[1]), backgroundColor: PALETTE, borderRadius: 4 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + fmt(c.raw) } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#8892a4', font: baseFont } },
+            y: { grid: { color: gridColor }, ticks: { color: '#8892a4', font: baseFont, callback: v => fmt(v) } }
+          }
+        }
+      });
+    },
+
+    // ── Q2 ────────────────────────────────
+    async loadQ2() {
+      this.q2Loading = true;
+      try {
+        this.q2Data = await apiFetch('/q2/ranking-temas');
+      } catch(e) { console.error('Q2', e); }
+      finally { this.q2Loading = false; }
+      if (!this.q2Data.length) return;
+      await this.$nextTick();
+      const top15 = this.q2Data.slice(0, 15);
+      mkChart('chart-q2-temas', hBarCfg(top15.map(d => d.tema), top15.map(d => d.num_proposicoes), fmtN));
+      mkChart('chart-q2-deps',  hBarCfg(top15.map(d => d.tema), top15.map(d => d.num_deputados),   fmtN));
+    },
+
+    // ── Q3 ────────────────────────────────
+    async loadQ3Temas() {
+      try {
+        this.q3Temas = await apiFetch('/q3/temas');
+        if (this.q3Temas.length) this.q3Tema = this.q3Temas[0].tema;
+      } catch(e) { console.error('Q3 temas', e); }
+    },
+    async loadQ3() {
+      if (!this.q3DepId) { this.q3Error = 'Informe o ID do deputado.'; return; }
+      this.q3Loading = true; this.q3Error = null; this.q3Result = null;
+      try {
+        const data = await apiFetch(`/q3/votos?deputado_id=${this.q3DepId}&tema=${encodeURIComponent(this.q3Tema)}`);
+        if (!data.length) { this.q3Error = 'Nenhum resultado encontrado.'; return; }
+        this.q3Result = {
+          nome: data[0].nome,
+          urlFoto: data[0].urlFoto || null,
+          total: data.reduce((s, d) => s + d.num_votos, 0),
+          votes: data,
+        };
+      } catch(e) {
+        this.q3Error = 'Erro: ' + e.message;
+      } finally {
+        this.q3Loading = false;
+      }
+      if (!this.q3Result) return;
+      await this.$nextTick();
+      mkChart('chart-q3-pie', {
+        type: 'doughnut',
+        data: {
+          labels: this.q3Result.votes.map(d => d.voto),
+          datasets: [{
+            data: this.q3Result.votes.map(d => d.num_votos),
+            backgroundColor: this.q3Result.votes.map(d => VOTE_COLORS[d.voto] || '#818cf8'),
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: '#e2e6f0', font: baseFont, boxWidth: 12 } } }
+        }
+      });
+    },
+
+    // ── Q4 ────────────────────────────────
+    async loadQ4() {
+      this.q4Loading = true;
+      try {
+        this.q4Data = await apiFetch('/q4/escolaridade');
+      } catch(e) { console.error('Q4', e); }
+      finally { this.q4Loading = false; }
+      if (!this.q4Data.length) return;
+      await this.$nextTick();
+      const labels = this.q4Data.map(d => d.escolaridade);
+      const vals   = this.q4Data.map(d => d.num_deputados);
+      const colors = this.q4Data.map((_, i) => PALETTE[i % PALETTE.length]);
+      mkChart('chart-q4-pie', {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: '#e2e6f0', font: baseFont, boxWidth: 12 } } }
+        }
+      });
+      mkChart('chart-q4-bar', {
+        type: 'bar',
+        data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderRadius: 6 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#8892a4', font: baseFont } },
+            y: { grid: { color: gridColor }, ticks: { color: '#8892a4', font: baseFont } }
+          }
+        }
+      });
+    },
+
+    // ── Q5 ────────────────────────────────
+    async loadQ5() {
+      this.q5Loading = true;
+      try {
+        this.q5Data = await apiFetch('/q5/fornecedores?limit=100');
+      } catch(e) { console.error('Q5', e); }
+      finally { this.q5Loading = false; }
+      if (!this.q5Data.length) return;
+      await this.$nextTick();
+      const top20 = this.q5Data.slice(0, 20);
+      mkChart('chart-q5-bar', hBarCfg(top20.map(d => d.fornecedor.slice(0, 30)), top20.map(d => d.total_recebido), fmt));
+    },
+
+    // ── Q6 ────────────────────────────────
+    async loadQ6() {
+      this.q6Loading = true;
+      try {
+        const [gastos, fid, prop, plen] = await Promise.all([
+          apiFetch('/q6/gastos'),
+          apiFetch('/q6/fidelidade-partidaria'),
+          apiFetch('/q6/proposicoes'),
+          apiFetch('/q6/presenca-plenario'),
+        ]);
+        this.q6Gastos = gastos; this.q6Fid = fid; this.q6Prop = prop; this.q6Plen = plen;
+      } catch(e) { console.error('Q6', e); }
+      finally { this.q6Loading = false; }
+      if (!this.q6Gastos.length) return;
+      await this.$nextTick();
+      const barOpts = (fmtFn, maxY) => ({
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ' ' + (fmtFn ? fmtFn(c.raw) : c.raw) } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#8892a4', font: baseFont } },
+          y: {
+            ...(maxY ? { max: maxY } : {}),
+            grid: { color: gridColor },
+            ticks: { color: '#8892a4', font: baseFont, callback: fmtFn || (v => v) }
+          }
+        }
+      });
+      mkChart('chart-q6-gastos', { type:'bar', data:{ labels: this.q6Gastos.map(d=>d.escolaridade), datasets:[{ data: this.q6Gastos.map(d=>d.media_gasto_por_deputado), backgroundColor: PALETTE[0], borderRadius:6 }] }, options: barOpts(fmt) });
+      mkChart('chart-q6-fid',    { type:'bar', data:{ labels: this.q6Fid.map(d=>d.escolaridade),    datasets:[{ data: this.q6Fid.map(d=>d.pct_fidelidade),          backgroundColor: PALETTE[2], borderRadius:6 }] }, options: barOpts(v=>v+'%', 100) });
+      mkChart('chart-q6-prop',   { type:'bar', data:{ labels: this.q6Prop.map(d=>d.escolaridade),   datasets:[{ data: this.q6Prop.map(d=>d.media_por_deputado),      backgroundColor: PALETTE[3], borderRadius:6 }] }, options: barOpts() });
+      mkChart('chart-q6-plen',   { type:'bar', data:{ labels: this.q6Plen.map(d=>d.escolaridade),   datasets:[{ data: this.q6Plen.map(d=>d.media_por_deputado),      backgroundColor: PALETTE[4], borderRadius:6 }] }, options: barOpts() });
+    },
+
+    // ── Q7 ────────────────────────────────
+    async loadQ7() {
+      this.q7Loading = true;
+      try {
+        this.q7Data = await apiFetch('/q7/influencia?limit=100');
+      } catch(e) {
+        this.q7Error = 'Erro ao carregar: ' + e.message;
+      } finally {
+        this.q7Loading = false;
+      }
+      if (!this.q7Data.length) return;
+      await this.$nextTick();
+      const top20 = this.q7Data.slice(0, 20);
+      mkChart('chart-q7-inf',   hBarCfg(top20.map(d => shortName(d.nome).split(' ').slice(0,2).join(' ')), top20.map(d => d.pct_influencia), v => pct(v)));
+      mkChart('chart-q7-aprov', hBarCfg(top20.map(d => shortName(d.nome).split(' ').slice(0,2).join(' ')), top20.map(d => d.taxa_aprovacao),  v => pct(v)));
+    },
+  },
+
+  mounted() {
+    this.showTab('q1');
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

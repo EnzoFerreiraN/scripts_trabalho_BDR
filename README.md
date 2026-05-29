@@ -1,5 +1,47 @@
 # Dossiê Grupo 7
 
+## Como Rodar o Projeto
+
+### Pré-requisitos
+
+- Python 3.10+
+- O banco de dados `camara-2023-2026.db` na raiz do projeto (gerado via `etl.py`)
+
+### Instalação
+
+```bash
+pip install -r requirements.txt
+```
+
+### Iniciando o servidor
+
+A partir da pasta `back-end/`:
+
+```bash
+cd back-end
+uvicorn main:app --reload
+```
+
+O servidor sobe em **http://localhost:8000**.
+
+### Acessando o front-end
+
+O front-end é um arquivo HTML único servido automaticamente pelo próprio servidor FastAPI — **não há servidor separado** para o front-end.
+
+Com o servidor rodando, abra no navegador:
+
+```
+http://localhost:8000
+```
+
+O dashboard carrega diretamente. A documentação interativa da API está em:
+
+```
+http://localhost:8000/docs
+```
+
+---
+
 ## Integrantes
 
 - Antônio Enzo Ferreira do Nascimento

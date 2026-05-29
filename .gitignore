@@ -5,3 +5,8 @@ dados.zip
 camara-2023-2026.db
 camara-2023-2026.db-shm
 camara-2023-2026.db-wal
+__pycache__/
+__init__.py
+server_err.log
+server.log
+.claude
