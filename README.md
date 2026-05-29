@@ -564,7 +564,7 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
    c. Nº de proposições;
    d. Presença em eventos;
    e. Presença no plenário.
-7. Ordenar por influência. Calcular o % de propostas aprovadas pelo deputado. O % é em relação ao total de propostas apresentadas no plenário.
+8. Ordenar por influência. Calcular o % de propostas aprovadas pelo deputado. O % é em relação ao total de propostas apresentadas no plenário.
 
 ---
 
@@ -645,11 +645,31 @@ Exemplo: `python q3_votacao_tema.py 204554 "Economia"`
 | **6d** | Presença em Eventos | `COUNT(presenca)` por escolaridade; média = total / `COUNT(DISTINCT d.id)` via LEFT JOIN |
 | **6e** | Presença no Plenário | Igual ao 6d, porém filtrando apenas eventos com `descricaoTipo = 'Sessão Deliberativa'` via subquery |
 
+**Por que o `num_deputados` varia entre as sub-questões?**
+
+Todas as queries usam `COUNT(DISTINCT d.id)` — o mecanismo é idêntico: conta IDs únicos de deputados nas linhas que chegam ao agrupamento. O que muda é **quais linhas chegam até esse COUNT**, e isso depende do tipo de JOIN usado.
+
+O JOIN transforma a tabela de deputados antes do agrupamento. Com `INNER JOIN`, só existem linhas onde há correspondência nas duas tabelas — deputados sem registros na tabela relacionada desaparecem silenciosamente. Com `LEFT JOIN`, cada deputado aparece pelo menos uma vez, com `NULL` nas colunas da tabela direita quando não há correspondência.
+
+Exemplo com 6a (Gastos, `INNER JOIN`): o banco de dados gera uma linha por transação de cada deputado. O `COUNT(DISTINCT d.id)` conta IDs únicos nesse conjunto. Um deputado sem nenhum lançamento em `gasto` nunca aparece nessa tabela intermediária e não é contado.
+
+Exemplo com 6c (Proposições, `LEFT JOIN`): todos os deputados com `escolaridade IS NOT NULL` aparecem, mesmo sem proposições. O deputado sem autoria entra com `NULL` em `a.idProposicao` — o `COUNT(DISTINCT d.id)` ainda o conta (porque `d.id` não é NULL), enquanto `COUNT(a.idProposicao)` retorna 0 para ele, pois `COUNT` ignora NULLs.
+
+| Sub | JOIN | Quem é excluído da contagem |
+|-----|------|-----------------------------|
+| **6a** Gastos | `INNER JOIN gasto` | Deputados sem nenhum gasto registrado |
+| **6b** Fidelidade | `INNER JOIN voto` + `INNER JOIN orientacao` | Deputados sem votos em sessões com orientação partidária não-liberada |
+| **6c** Proposições | `LEFT JOIN autoria` | Ninguém — universo completo |
+| **6d** Presença eventos | `LEFT JOIN presenca` | Ninguém — universo completo |
+| **6e** Presença plenário | `LEFT JOIN (presenca + evento)` | Ninguém — universo completo |
+
+As sub-questões 6c, 6d e 6e devem retornar o mesmo `num_deputados` por escolaridade, pois todas partem do universo completo via `LEFT JOIN`. As sub-questões 6a e 6b tendem a apresentar contagens menores, uma vez que o `INNER JOIN` exclui deputados sem dados nas tabelas relacionadas.
+
 ---
 
-### Q7 — `q7_influencia.py` — Deputados por influência no Plenário
+### Q8 — `q8_influencia.py` — Deputados por influência no Plenário
 
-**Execução:** `python q7_influencia.py`
+**Execução:** `python q8_influencia.py`
 
 **Método de cálculo:**
 
