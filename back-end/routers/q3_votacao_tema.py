@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Query, HTTPException
 from database import get_connection
-from schemas import Tema, VotoPorTema
+from schemas import Tema, VotoPorTema, DeputadoBasico
 
 router = APIRouter()
 
 SQL_TEMAS = "SELECT codTema, tema FROM tema ORDER BY tema;"
+
+SQL_DEPUTADOS = """
+SELECT DISTINCT d.id, d.nome, d.urlFoto
+FROM deputado d
+JOIN voto v ON v.deputado_id = d.id
+ORDER BY d.nome;
+"""
 
 SQL_RESUMO = """
 SELECT
@@ -25,6 +32,16 @@ WHERE d.id   = :dep_id
 GROUP BY d.id, t.codTema, v.voto
 ORDER BY d.nome, t.tema, num_votos DESC;
 """
+
+
+@router.get("/deputados", response_model=list[DeputadoBasico])
+def listar_deputados():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(SQL_DEPUTADOS)
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 @router.get("/temas", response_model=list[Tema])

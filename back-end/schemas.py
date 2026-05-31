@@ -99,6 +99,23 @@ class CorrelacaoPresencaPlenario(BaseModel):
     media_por_deputado: float
 
 
+# Q1 - Detalhe de gastos por deputado
+class GastoDetalhe(BaseModel):
+    categoria: str
+    num_transacoes: int
+    total: float
+    media: float
+    maior_fornecedor: Optional[str] = None
+    maior_valor: float
+
+
+# Q3 - Deputado básico para busca
+class DeputadoBasico(BaseModel):
+    id: int
+    nome: str
+    urlFoto: Optional[str] = None
+
+
 # Q7 - Influência
 class Influencia(BaseModel):
     nome: str

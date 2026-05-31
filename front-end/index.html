@@ -6,6 +6,7 @@
   <title>Câmara dos Deputados — BDR Grupo 7</title>
   <script src="https://unpkg.com/vue@3.4.0/dist/vue.global.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -312,6 +313,77 @@
     .q3-hero-info .dep-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.25rem; }
     .q3-hero-info .dep-total { font-size: 0.9rem; color: var(--green); margin-top: 0.5rem; }
 
+    /* ── Clickable rows ── */
+    tr.clickable { cursor: pointer; }
+    tr.clickable:hover td { background: rgba(79,142,247,0.1); }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 760px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 1.5rem;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute; top: 1rem; right: 1rem;
+      background: var(--surface2); border: none;
+      border-radius: 50%; width: 30px; height: 30px;
+      color: var(--muted); cursor: pointer; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-header {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-right: 2rem;
+    }
+    .modal-dep-info .dep-name { font-size: 1.1rem; font-weight: 700; }
+    .modal-dep-info .dep-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
+    .modal-dep-info .dep-total { font-size: 1rem; font-weight: 700; color: var(--accent); margin-top: 0.4rem; }
+
+    /* ── Q3 Deputy search ── */
+    .dep-search-wrap { position: relative; }
+    .dep-search-list {
+      position: absolute; top: calc(100% + 4px); left: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 240px; overflow-y: auto;
+      width: 320px; z-index: 200;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .dep-search-item {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      transition: background 0.1s;
+      font-size: 0.83rem;
+    }
+    .dep-search-item:hover { background: rgba(79,142,247,0.12); }
+    .dep-search-item .dep-search-id { margin-left: auto; font-size: 0.73rem; color: var(--muted); white-space: nowrap; }
+    .avatar-xs { width: 26px; height: 26px; font-size: 0.6rem; flex-shrink: 0; }
+    .dep-selected-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: rgba(79,142,247,0.15);
+      border: 1px solid rgba(79,142,247,0.3);
+      border-radius: 6px; padding: 0.3rem 0.6rem;
+      font-size: 0.8rem; color: var(--accent);
+      margin-top: 0.4rem;
+    }
+
     /* ── Q7 Podium ── */
     .podium {
       display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: flex-end;
@@ -394,7 +466,8 @@
 
         <!-- Top 5 cards -->
         <div class="deputy-cards">
-          <div class="deputy-card" v-for="(dep, i) in q1Data.slice(0,5)" :key="dep.id">
+          <div class="deputy-card" v-for="(dep, i) in q1Data.slice(0,5)" :key="dep.id"
+               @click="openDepDetail(dep)" style="cursor:pointer" title="Ver detalhes de gastos">
             <div class="deputy-card-rank" :class="i < 3 ? 'dc-rank-'+(i+1) : 'dc-rank-n'">{{ i+1 }}</div>
             <div class="avatar avatar-lg">
               <img v-if="dep.urlFoto" :src="dep.urlFoto" :alt="dep.nome" @error="dep.urlFoto = null" />
@@ -433,7 +506,8 @@
                 <th style="text-align:right">Total gasto</th>
               </tr></thead>
               <tbody>
-                <tr v-for="(dep, i) in q1Data" :key="dep.id">
+                <tr v-for="(dep, i) in q1Data" :key="dep.id"
+                    class="clickable" @click="openDepDetail(dep)" title="Ver detalhes de gastos">
                   <td><span class="rank-num" :class="i<3 ? 'rank-'+(i+1) : 'rank-n'">{{ i+1 }}</span></td>
                   <td>
                     <div class="td-deputy">
@@ -456,11 +530,72 @@
       </template>
     </div>
 
+    <!-- ══════════════ Modal detalhe Q1 ══════════════ -->
+    <div class="modal-overlay" v-if="q1ShowModal" @click.self="closeModal">
+      <div class="modal">
+        <button class="modal-close" @click="closeModal">✕</button>
+        <div class="modal-header" v-if="q1SelectedDep">
+          <div class="avatar avatar-lg">
+            <img v-if="q1SelectedDep.urlFoto" :src="q1SelectedDep.urlFoto" :alt="q1SelectedDep.nome" @error="q1SelectedDep.urlFoto = null" />
+            <span v-else>{{ initials(q1SelectedDep.nome) }}</span>
+          </div>
+          <div class="modal-dep-info">
+            <div class="dep-name">{{ q1SelectedDep.nome }}</div>
+            <div class="dep-meta">
+              <span class="badge badge-blue">{{ q1SelectedDep.partido }}</span>
+              <span class="badge badge-gray" style="margin-left:0.3rem">{{ q1SelectedDep.uf }}</span>
+            </div>
+            <div class="dep-total">{{ fmt(q1SelectedDep.total_gasto) }} em {{ fmtN(q1SelectedDep.num_transacoes) }} transações</div>
+          </div>
+        </div>
+
+        <div v-if="q1DetailLoading" class="loading"><div class="spinner"></div> Carregando detalhes…</div>
+        <div v-else-if="q1DetailError" class="error">{{ q1DetailError }}</div>
+        <template v-else-if="q1Detail.length">
+          <div class="grid-2" style="margin-bottom:1.25rem">
+            <div class="card">
+              <h3>Distribuição por categoria</h3>
+              <div class="chart-wrap"><canvas id="chart-q1-detalhe"></canvas></div>
+            </div>
+            <div class="card" style="overflow:hidden">
+              <h3>Por categoria</h3>
+              <div class="table-wrap" style="max-height:280px">
+                <table>
+                  <thead><tr>
+                    <th>Categoria</th>
+                    <th style="text-align:right">Transações</th>
+                    <th style="text-align:right">Total</th>
+                    <th style="text-align:right">Média</th>
+                  </tr></thead>
+                  <tbody>
+                    <tr v-for="d in q1Detail" :key="d.categoria">
+                      <td style="max-width:160px;white-space:normal;line-height:1.2;font-size:0.78rem">{{ d.categoria }}</td>
+                      <td style="text-align:right">{{ fmtN(d.num_transacoes) }}</td>
+                      <td style="text-align:right;font-weight:600">{{ fmt(d.total) }}</td>
+                      <td style="text-align:right;color:var(--muted)">{{ fmt(d.media) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
     <!-- ══════════════ Q2 ══════════════ -->
     <div v-show="activeTab === 'q2'">
       <p class="section-title"><span class="q-badge">Q2</span> Quais os principais eixos de atuação?</p>
       <div v-if="q2Loading" class="loading"><div class="spinner"></div> Carregando…</div>
       <template v-else-if="q2Data.length">
+        <div class="card" style="margin-bottom:1.5rem">
+          <h3>Nuvem de palavras — eixos de atuação (tamanho ∝ nº de proposições)</h3>
+          <canvas id="chart-q2-wordcloud" style="width:100%;height:360px;display:block"></canvas>
+        </div>
+        <div class="card" style="margin-bottom:1.5rem">
+          <h3>Gráfico de bolhas — proposições × deputados (tamanho da bolha ∝ nº de proposições)</h3>
+          <div class="chart-wrap-tall"><canvas id="chart-q2-bubble"></canvas></div>
+        </div>
         <div class="grid-2" style="margin-bottom:1.5rem">
           <div class="card">
             <h3>Ranking de temas por nº de proposições</h3>
@@ -498,9 +633,35 @@
     <div v-show="activeTab === 'q3'">
       <p class="section-title"><span class="q-badge">Q3</span> Como um deputado vota em determinado tema?</p>
       <div class="controls">
-        <div>
-          <label>ID do Deputado</label>
-          <input v-model="q3DepId" type="number" placeholder="ex: 204554" @keyup.enter="loadQ3" />
+        <div class="dep-search-wrap">
+          <label>Deputado</label>
+          <input
+            v-model="q3DepSearch"
+            type="text"
+            placeholder="Digite o nome…"
+            @input="q3ShowList = true"
+            @focus="q3ShowList = true"
+            autocomplete="off"
+            style="min-width:240px"
+          />
+          <div class="dep-search-list" v-if="q3ShowList && q3DepSearch.length >= 2 && q3DeputadosFiltrados.length">
+            <div
+              v-for="dep in q3DeputadosFiltrados"
+              :key="dep.id"
+              class="dep-search-item"
+              @mousedown.prevent="selectDep(dep)"
+            >
+              <div class="avatar avatar-xs">
+                <img v-if="dep.urlFoto" :src="dep.urlFoto" :alt="dep.nome" @error="dep.urlFoto = null" />
+                <span v-else>{{ initials(dep.nome) }}</span>
+              </div>
+              <span>{{ dep.nome }}</span>
+              <span class="dep-search-id">ID {{ dep.id }}</span>
+            </div>
+          </div>
+          <div v-if="q3DepId" class="dep-selected-badge">
+            <span>ID selecionado:</span> <strong>{{ q3DepId }}</strong>
+          </div>
         </div>
         <div>
           <label>Tema</label>
@@ -858,8 +1019,10 @@ createApp({
       ],
 
       q1Data: [], q1Loading: false, q1Error: null,
+      q1ShowModal: false, q1SelectedDep: null, q1Detail: [], q1DetailLoading: false, q1DetailError: null,
       q2Data: [], q2Loading: false,
-      q3Temas: [], q3DepId: '', q3Tema: '', q3Result: null, q3Loading: false, q3Error: null,
+      q3Temas: [], q3Deputados: [], q3DepId: '', q3DepSearch: '', q3ShowList: false,
+      q3Tema: '', q3Result: null, q3Loading: false, q3Error: null,
       q4Data: [], q4Loading: false,
       q5Data: [], q5Loading: false,
       q6Gastos: [], q6Fid: [], q6Prop: [], q6Plen: [], q6Loading: false,
@@ -870,11 +1033,65 @@ createApp({
   computed: {
     q1Total() { return this.q1Data.reduce((s, d) => s + d.total_gasto, 0); },
     q5Total() { return this.q5Data.reduce((s, d) => s + d.total_recebido, 0); },
+    q3DeputadosFiltrados() {
+      const q = this.q3DepSearch.toLowerCase().trim();
+      if (!q) return [];
+      return this.q3Deputados.filter(d => d.nome.toLowerCase().includes(q)).slice(0, 15);
+    },
   },
 
   methods: {
     fmt, fmtN, pct, initials, shortName,
     voteColor(v) { return VOTE_COLORS[v] || '#4f8ef7'; },
+
+    // ── Q1 Modal ──────────────────────────
+    async openDepDetail(dep) {
+      this.q1SelectedDep = dep;
+      this.q1ShowModal = true;
+      this.q1Detail = [];
+      this.q1DetailError = null;
+      this.q1DetailLoading = true;
+      try {
+        this.q1Detail = await apiFetch(`/q1/gastos-detalhados/${dep.id}`);
+      } catch(e) {
+        this.q1DetailError = 'Erro ao carregar detalhes: ' + e.message;
+      } finally {
+        this.q1DetailLoading = false;
+      }
+      if (!this.q1Detail.length) return;
+      await this.$nextTick();
+      const top8 = this.q1Detail.slice(0, 8);
+      mkChart('chart-q1-detalhe', {
+        type: 'doughnut',
+        data: {
+          labels: top8.map(d => d.categoria),
+          datasets: [{
+            data: top8.map(d => d.total),
+            backgroundColor: PALETTE,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#e2e6f0', font: { size: 10 }, boxWidth: 12 } },
+            tooltip: { callbacks: { label: c => ' ' + fmt(c.raw) } }
+          }
+        }
+      });
+    },
+    closeModal() {
+      this.q1ShowModal = false;
+      this.q1SelectedDep = null;
+      this.q1Detail = [];
+    },
+
+    // ── Q3 Deputy search ──────────────────
+    selectDep(dep) {
+      this.q3DepId = dep.id;
+      this.q3DepSearch = dep.nome;
+      this.q3ShowList = false;
+    },
 
     showTab(tab) {
       this.activeTab = tab;
@@ -941,17 +1158,89 @@ createApp({
       const top15 = this.q2Data.slice(0, 15);
       mkChart('chart-q2-temas', hBarCfg(top15.map(d => d.tema), top15.map(d => d.num_proposicoes), fmtN));
       mkChart('chart-q2-deps',  hBarCfg(top15.map(d => d.tema), top15.map(d => d.num_deputados),   fmtN));
+      const maxPropBubble = Math.max(...this.q2Data.map(d => d.num_proposicoes));
+      mkChart('chart-q2-bubble', {
+        type: 'bubble',
+        data: {
+          datasets: this.q2Data.map((d, i) => ({
+            label: d.tema,
+            data: [{
+              x: d.num_deputados,
+              y: d.num_proposicoes,
+              r: Math.round(4 + (d.num_proposicoes / maxPropBubble) * 36),
+            }],
+            backgroundColor: PALETTE[i % PALETTE.length] + 'bb',
+            borderColor:     PALETTE[i % PALETTE.length],
+            borderWidth: 1,
+          }))
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  const d = this.q2Data[ctx.datasetIndex];
+                  return [
+                    ` ${d.tema}`,
+                    ` Proposições: ${fmtN(d.num_proposicoes)}`,
+                    ` Deputados: ${fmtN(d.num_deputados)}`,
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Nº de deputados', color: '#8892a4', font: baseFont },
+              grid: { color: gridColor },
+              ticks: { color: '#8892a4', font: baseFont },
+            },
+            y: {
+              title: { display: true, text: 'Nº de proposições', color: '#8892a4', font: baseFont },
+              grid: { color: gridColor },
+              ticks: { color: '#8892a4', font: baseFont, callback: v => fmtN(v) },
+            }
+          }
+        }
+      });
+      const wcCanvas = document.getElementById('chart-q2-wordcloud');
+      if (wcCanvas && typeof WordCloud !== 'undefined') {
+        wcCanvas.width  = wcCanvas.offsetWidth  || 900;
+        wcCanvas.height = 360;
+        const maxProp = Math.max(...this.q2Data.map(d => d.num_proposicoes));
+        // Normaliza para [12, 64]px — sem distorção por comprimento da frase
+        const wcList = this.q2Data.map(d => [
+          d.tema,
+          Math.round(12 + (d.num_proposicoes / maxProp) * 52),
+        ]);
+        WordCloud(wcCanvas, {
+          list: wcList,
+          fontFamily: "'Segoe UI', sans-serif",
+          color: () => PALETTE[Math.floor(Math.random() * PALETTE.length)],
+          backgroundColor: '#1a1d27',
+          rotateRatio: 0,
+          minSize: 8,
+          weightFactor: 1,
+          drawOutOfBound: false,
+          shrinkToFit: true,
+        });
+      }
     },
 
     // ── Q3 ────────────────────────────────
     async loadQ3Temas() {
       try {
-        this.q3Temas = await apiFetch('/q3/temas');
+        [this.q3Temas, this.q3Deputados] = await Promise.all([
+          apiFetch('/q3/temas'),
+          apiFetch('/q3/deputados'),
+        ]);
         if (this.q3Temas.length) this.q3Tema = this.q3Temas[0].tema;
-      } catch(e) { console.error('Q3 temas', e); }
+      } catch(e) { console.error('Q3 temas/deputados', e); }
     },
     async loadQ3() {
-      if (!this.q3DepId) { this.q3Error = 'Informe o ID do deputado.'; return; }
+      if (!this.q3DepId) { this.q3Error = 'Selecione um deputado da lista.'; return; }
       this.q3Loading = true; this.q3Error = null; this.q3Result = null;
       try {
         const data = await apiFetch(`/q3/votos?deputado_id=${this.q3DepId}&tema=${encodeURIComponent(this.q3Tema)}`);
