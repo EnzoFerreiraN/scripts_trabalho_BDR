@@ -1,9 +1,5 @@
-from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from routers import q1_gastos, q2_eixo_atuacao, q3_votacao_tema, q4_escolaridade, q5_fornecedores, q6_correlacao, q7_influencia
 
@@ -23,9 +19,3 @@ app.include_router(q4_escolaridade.router, prefix="/q4", tags=["Q4 - Escolaridad
 app.include_router(q5_fornecedores.router, prefix="/q5", tags=["Q5 - Fornecedores"])
 app.include_router(q6_correlacao.router,   prefix="/q6", tags=["Q6 - Correlação Escolaridade"])
 app.include_router(q7_influencia.router,   prefix="/q7", tags=["Q7 - Influência"])
-
-FRONTEND = Path(__file__).parent.parent / "front-end"
-
-@app.get("/")
-def root():
-    return FileResponse(FRONTEND / "index.html")

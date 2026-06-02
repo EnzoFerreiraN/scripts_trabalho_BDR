@@ -1,19 +1,50 @@
 # Dossiê Grupo 7
 
+## Arquitetura
+
+```
+projeto final/
+├── back-end/        # API REST — FastAPI + SQLite
+│   ├── main.py
+│   ├── database.py
+│   ├── schemas.py
+│   └── routers/     # q1_gastos … q7_influencia
+├── front-end/       # Dashboard — React + Vite
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── components/   # Q1–Q7, shared
+│   │   ├── lib/          # api.js, formatters.js, chartDefaults.js
+│   │   └── styles/
+│   └── package.json
+└── requirements.txt
+```
+
+O back-end serve **exclusivamente** a API REST (porta 8000). O front-end é um projeto React independente servido pelo Vite (porta 5173) em desenvolvimento; em produção, basta fazer o build e servir a pasta `dist/` com qualquer servidor estático.
+
+---
+
 ## Como Rodar o Projeto
 
 ### Pré-requisitos
 
 - Python 3.10+
+- Node.js 18+
 - O banco de dados `camara-2023-2026.db` na raiz do projeto (gerado via `etl.py`)
 
-### Instalação
+### 1. Instalar dependências
 
+**Back-end:**
 ```bash
 pip install -r requirements.txt
 ```
 
-### Iniciando o servidor
+**Front-end:**
+```bash
+cd front-end
+npm install
+```
+
+### 2. Iniciar o back-end
 
 A partir da pasta `back-end/`:
 
@@ -22,22 +53,28 @@ cd back-end
 uvicorn main:app --reload
 ```
 
-O servidor sobe em **http://localhost:8000**.
+A API sobe em **http://localhost:8000**.  
+Documentação interativa: **http://localhost:8000/docs**
 
-### Acessando o front-end
+### 3. Iniciar o front-end
 
-O front-end é um arquivo HTML único servido automaticamente pelo próprio servidor FastAPI — **não há servidor separado** para o front-end.
+Em outro terminal, a partir da pasta `front-end/`:
 
-Com o servidor rodando, abra no navegador:
-
+```bash
+cd front-end
+npm run dev
 ```
-http://localhost:8000
-```
 
-O dashboard carrega diretamente. A documentação interativa da API está em:
+O dashboard abre em **http://localhost:5173**.
 
-```
-http://localhost:8000/docs
+> O Vite encaminha automaticamente as chamadas `/q1` … `/q7` para o FastAPI via proxy configurado em `vite.config.js` — não é necessário alterar nenhuma URL.
+
+### Build de produção
+
+```bash
+cd front-end
+npm run build
+# Os arquivos estáticos ficam em front-end/dist/
 ```
 
 ---

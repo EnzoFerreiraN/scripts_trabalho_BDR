@@ -1,12 +1,37 @@
+# ── Banco de dados ──────────────────────────────────
 dados/
-venv/
-camara.db*
 dados.zip
+camara.db*
 camara-2023-2026.db
 camara-2023-2026.db-shm
 camara-2023-2026.db-wal
+
+# ── Python ───────────────────────────────────────────
+venv/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
 __init__.py
+*.egg-info/
+.eggs/
+dist/
+build/
+.env
 server_err.log
 server.log
+
+# ── Node / React (front-end) ─────────────────────────
+front-end/node_modules/
+front-end/dist/
+front-end/.vite/
+
+# ── Ferramentas e IDEs ───────────────────────────────
 .claude
+.vscode/
+.idea/
+*.suo
+*.user
+.DS_Store
+Thumbs.db
+
