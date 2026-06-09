@@ -578,6 +578,7 @@ tr.clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -
   margin-bottom: 1.5rem;
   padding-right: 2rem;
 }
+.modal-header > span { font-size: 1rem; font-weight: 700; color: var(--ink); flex: 1; }
 .modal-dep-info .dep-name { font-size: 1.15rem; font-weight: 700; color: var(--ink); }
 .modal-dep-info .dep-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.3rem; }
 .modal-dep-info .dep-total { font-family: var(--mono); font-size: 1rem; font-weight: 600; color: var(--accent-strong); margin-top: 0.45rem; font-variant-numeric: tabular-nums; }
@@ -716,6 +717,49 @@ tr.clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -
   line-height: 1.55;
 }
 .info-card-body li:last-child { margin-bottom: 0; }
+
+/* ── Q6 Correlation coefficient card ── */
+.correl-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1.1rem;
+  margin-bottom: 0.9rem;
+}
+.correl-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.correl-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.correl-val {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.correl-interp {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.correl-n {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {

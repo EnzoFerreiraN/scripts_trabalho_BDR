@@ -6,6 +6,7 @@ from schemas import (
     CorrelacaoProposicoes,
     CorrelacaoPresenca,
     CorrelacaoPresencaPlenario,
+    DadosDeputadoCorrelacao,
 )
 
 router = APIRouter()
@@ -106,6 +107,61 @@ ORDER BY en.escolaridade_ord;
 """
 
 
+SQL_DADOS_DEPUTADO = """
+WITH gasto_dep AS (
+    SELECT idDeCadastro AS dep_id,
+           ROUND(SUM(vlrLiquido), 2) AS total_gasto
+    FROM gasto
+    WHERE vlrLiquido > 0
+    GROUP BY idDeCadastro
+),
+fid_dep AS (
+    SELECT v.deputado_id,
+           ROUND(100.0 * SUM(CASE WHEN v.voto = o.orientacao THEN 1 ELSE 0 END)
+                       / COUNT(*), 2) AS pct_fidelidade
+    FROM voto v
+    JOIN orientacao o ON o.idVotacao      = v.idVotacao
+                     AND o.siglaBancada  = v.deputado_siglaPartido
+    WHERE o.orientacao IS NOT NULL
+      AND o.orientacao != 'Liberado'
+      AND v.voto       IS NOT NULL
+    GROUP BY v.deputado_id
+),
+prop_dep AS (
+    SELECT idDeputadoAutor AS dep_id,
+           COUNT(idProposicao) AS num_proposicoes
+    FROM autoria
+    WHERE idDeputadoAutor IS NOT NULL
+    GROUP BY idDeputadoAutor
+),
+pres_dep AS (
+    SELECT p.idDeputado AS dep_id,
+           COUNT(p.idEvento) AS num_presencas
+    FROM presenca p
+    JOIN evento e ON e.id = p.idEvento
+    WHERE e.descricaoTipo = 'Sessão Deliberativa'
+    GROUP BY p.idDeputado
+)
+SELECT
+    d.id                                      AS dep_id,
+    en.escolaridade,
+    en.escolaridade_ord,
+    COALESCE(g.total_gasto, 0)                AS total_gasto,
+    f.pct_fidelidade,
+    COALESCE(pr.num_proposicoes, 0)           AS num_proposicoes,
+    COALESCE(ps.num_presencas, 0)             AS num_presencas
+FROM deputado d
+JOIN vw_escolaridade_norm en ON en.dep_id    = d.id
+LEFT JOIN gasto_dep g        ON g.dep_id     = d.id
+LEFT JOIN fid_dep f          ON f.deputado_id = d.id
+LEFT JOIN prop_dep pr        ON pr.dep_id    = d.id
+LEFT JOIN pres_dep ps        ON ps.dep_id    = d.id
+WHERE en.escolaridade_ord > 0
+  AND d.id IN (SELECT id FROM vw_deputado_atual)
+ORDER BY d.id;
+"""
+
+
 def _query(sql: str) -> list[dict]:
     conn = get_connection()
     cur = conn.cursor()
@@ -138,3 +194,8 @@ def correlacao_presenca_eventos():
 @router.get("/presenca-plenario", response_model=list[CorrelacaoPresencaPlenario])
 def correlacao_presenca_plenario():
     return _query(SQL_6E)
+
+
+@router.get("/dados-deputado", response_model=list[DadosDeputadoCorrelacao])
+def dados_deputado():
+    return _query(SQL_DADOS_DEPUTADO)

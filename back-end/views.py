@@ -80,7 +80,7 @@ FROM deputado;
     # I2 ── influência ponderada: peso por autoria (ordemAssinatura/proponente)
     #   × margem de aprovação (votosSim/total), normalizado 0-100
     """
-CREATE VIEW IF NOT EXISTS vw_influencia AS
+CREATE VIEW vw_influencia AS
 WITH plen_aprovadas AS (
     SELECT DISTINCT p.proposicao_id,
            COALESCE(
@@ -157,8 +157,12 @@ FROM scored;
 
 
 def init_views(conn) -> None:
-    """Create all views idempotently. Call once at API startup."""
+    """Create all views at API startup.
+    vw_influencia is dropped first so formula changes always take effect.
+    The other three views use IF NOT EXISTS and are only created on first run.
+    """
     cur = conn.cursor()
+    cur.execute("DROP VIEW IF EXISTS vw_influencia")
     for ddl in DDL_VIEWS:
         cur.execute(ddl)
     conn.commit()

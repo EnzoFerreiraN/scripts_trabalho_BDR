@@ -15,6 +15,7 @@ class GastoDeputado(BaseModel):
 
 # Q2 - Eixo de Atuação
 class RankingTema(BaseModel):
+    codTema: int
     tema: str
     num_proposicoes: int
     num_deputados: int
@@ -24,6 +25,15 @@ class TemaDeputado(BaseModel):
     id: int
     nome: str
     tema: str
+    num_proposicoes: int
+
+
+class DeputadoPorTema(BaseModel):
+    id: int
+    nome: str
+    urlFoto: Optional[str] = None
+    partido: Optional[str] = None
+    uf: Optional[str] = None
     num_proposicoes: int
 
 
@@ -59,6 +69,17 @@ class Fornecedor(BaseModel):
     num_deputados: int
     total_recebido: float
     ticket_medio: float
+
+
+# Q6 - Dados por deputado para correlação individual
+class DadosDeputadoCorrelacao(BaseModel):
+    dep_id: int
+    escolaridade: str
+    escolaridade_ord: int
+    total_gasto: float
+    pct_fidelidade: Optional[float] = None
+    num_proposicoes: int
+    num_presencas: int
 
 
 # Q6 - Correlação Escolaridade

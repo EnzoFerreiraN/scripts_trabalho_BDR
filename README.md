@@ -8,12 +8,13 @@ projeto final/
 │   ├── main.py
 │   ├── database.py
 │   ├── schemas.py
+│   ├── views.py     # SQL Views criadas no startup (vw_deputado_atual, vw_gasto_deputado, vw_escolaridade_norm, vw_influencia)
 │   └── routers/     # q1_gastos … q7_influencia
 ├── front-end/       # Dashboard — React + Vite
 │   ├── src/
 │   │   ├── App.jsx
-│   │   ├── components/   # Q1–Q7, shared
-│   │   ├── lib/          # api.js, formatters.js, chartDefaults.js
+│   │   ├── components/   # Q1–Q7, shared (Modal, DataTable, Avatar, Badge…)
+│   │   ├── lib/          # api.js, formatters.js, chartDefaults.js, stats.js
 │   │   └── styles/
 │   └── package.json
 └── requirements.txt
@@ -76,6 +77,19 @@ cd front-end
 npm run build
 # Os arquivos estáticos ficam em front-end/dist/
 ```
+
+---
+
+## Views SQL
+
+Ao subir, a API executa `init_views()` (`back-end/views.py`) que cria quatro views SQLite reutilizadas em quase todos os endpoints:
+
+| View | Descrição |
+|---|---|
+| `vw_deputado_atual` | População canônica — deputados com ao menos um registro de gasto na legislatura 2023–2026 (~844 deputados). |
+| `vw_gasto_deputado` | Totalização de gastos por deputado (`SUM(vlrLiquido)`, `COUNT(ideDocumento)`) com partido e UF inferidos do lançamento mais recente. |
+| `vw_escolaridade_norm` | Escolaridade normalizada em 5 buckets ordinais: **0** Sem informação · **1** Fundamental · **2** Médio · **3** Superior · **4** Pós-graduação. Base de todos os agrupamentos do Q4 e Q6. |
+| `vw_influencia` | Score de influência ponderado por autoria e margem de aprovação (ver Q7). Recriada a cada startup via `DROP VIEW IF EXISTS` + `CREATE VIEW` para que alterações de fórmula entrem em vigor imediatamente. As demais views usam `CREATE VIEW IF NOT EXISTS`. |
 
 ---
 
@@ -590,87 +604,114 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 
 ## Perguntas
 
-1. Deputados ordenados por gastos.
-2. Agrupar deputados por eixo de atuação (Nuvem de Palavras) — Ex.: eixo social, econômico, tributário, segurança, saúde, etc.
+1. Deputados ordenados por gastos totais.
+2. Agrupar deputados por eixo de atuação (Nuvem de Palavras) — ex.: social, econômico, tributário, segurança, saúde; com drill-down de tema para ver os deputados mais ativos.
 3. Como um deputado votou em um tema/eixo específico.
 4. Agrupar deputados por escolaridade.
-5. Ordenar fornecedores (despesas) por valores de contrato.
+5. Ordenar fornecedores (recebedores de despesas) por valor total recebido.
 6. Correlacionar escolaridade com:
-   a. Gastos;
-   b. Fidelidade Partidária;
-   c. Nº de proposições;
-   d. Presença em eventos;
+   a. Volume de gastos;
+   b. Fidelidade partidária;
+   c. Nº de proposições apresentadas;
+   d. Presença em eventos/comissões;
    e. Presença no plenário.
-8. Ordenar por influência. Calcular o % de propostas aprovadas pelo deputado. O % é em relação ao total de propostas apresentadas no plenário.
+7. Ranking de influência baseado no percentual de propostas aprovadas pelo deputado em relação às que ele apresentou no plenário, ponderado pelo papel de autoria e pela margem de aprovação.
 
 ---
 
-## Scripts de Análise
+## Endpoints da API
 
-### Q1 — `q1_gastos_deputados.py` — Deputados por gastos totais
+Toda a lógica analítica está implementada como endpoints FastAPI em `back-end/routers/`. A API sobe na porta **8000**; o Vite faz proxy automático de `/q1` … `/q7` para ela. Documentação interativa completa em **http://localhost:8000/docs**.
 
-**Execução:** `python q1_gastos_deputados.py`
+---
+
+### Q1 — `/q1` — Gastos dos Deputados
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q1/gastos-deputados?limit=` | Lista deputados ordenados por `total_gasto` decrescente. `limit` opcional. |
+| `GET` | `/q1/gastos-detalhados/{deputado_id}` | Gastos do deputado agrupados por categoria CEAP (`txtDescricao`) — ordena pelo total da categoria. Identifica a **categoria de maior gasto** do deputado. |
+| `GET` | `/q1/deputados` | Lista leve (id, nome, foto) para autocomplete de busca. |
 
 **Método de cálculo:**
-- Junta `deputado` com `gasto` via `idDeCadastro`.
-- Agrupa por deputado (id, nome, partido, UF).
-- Calcula `SUM(vlrLiquido)` como total gasto e `COUNT(ideDocumento)` como número de transações.
-- Ordena pelo total gasto decrescente (top 50).
+- Usa `vw_gasto_deputado`: `SUM(vlrLiquido)` como total gasto e `COUNT(ideDocumento)` como nº de transações por deputado.
+- Partido e UF são extraídos do lançamento mais recente via `ROW_NUMBER() OVER (PARTITION BY idDeCadastro ORDER BY numAno DESC, numMes DESC, ideDocumento DESC)`.
+- `gastos-detalhados` agrupa diretamente em `gasto` por `txtDescricao` (apenas `vlrLiquido > 0`), retornando total, média, ticket máximo e maior fornecedor de cada categoria.
 
 ---
 
-### Q2 — `q2_eixo_atuacao.py` — Eixo de atuação por deputado
+### Q2 — `/q2` — Eixo de Atuação
 
-**Execução:** `python q2_eixo_atuacao.py`
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q2/ranking-temas` | Ranking de temas por nº de proposições distintas. Inclui `codTema` para identificação. |
+| `GET` | `/q2/tema-por-deputado?limit=` | Tema dominante de cada deputado (o com mais proposições de autoria). |
+| `GET` | `/q2/deputados-por-tema?cod_tema=&limit=` | **Drill-down:** top deputados por nº de proposições no tema `cod_tema`. Alimenta o modal que abre ao clicar numa bolha ou palavra na nuvem. |
 
 **Método de cálculo:**
-- **Ranking geral de temas:** junta `tema → classificacao → autoria`, conta proposições distintas e deputados distintos por tema.
-- **Tema dominante por deputado:** via CTE com `ROW_NUMBER() OVER (PARTITION BY d.id ORDER BY COUNT(*) DESC)` — seleciona o tema com maior número de proposições de autoria de cada deputado.
-- Exibe os top 50 deputados por volume de proposições no tema dominante.
+- `ranking-temas`: `COUNT(DISTINCT a.idProposicao)` agrupado por `tema`, juntando `tema → classificacao → autoria`.
+- `tema-por-deputado`: CTE com `ROW_NUMBER() OVER (PARTITION BY d.id ORDER BY COUNT(*) DESC)` — seleciona o tema com mais proposições de autoria de cada deputado.
+- `deputados-por-tema`: `COUNT(DISTINCT a.idProposicao)` por deputado filtrando `c.codTema = :cod_tema`; `LEFT JOIN vw_gasto_deputado` para partido/UF.
 
 ---
 
-### Q3 — `q3_votacao_tema.py` — Votos de um deputado em um tema
+### Q3 — `/q3` — Votação por Tema
 
-**Execução:** `python q3_votacao_tema.py <id_deputado> "<tema>"`
-
-Exemplo: `python q3_votacao_tema.py 204554 "Economia"`
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q3/temas` | Todos os temas disponíveis no banco. |
+| `GET` | `/q3/deputados` | Deputados que possuem registros de voto. |
+| `GET` | `/q3/votos?deputado_id=&tema=` | Como o deputado votou em proposições do tema (busca parcial por nome). |
 
 **Método de cálculo:**
-- Junta `voto → pauta → classificacao → tema` para recuperar todos os votos do deputado em proposições classificadas no tema informado.
-- Calcula o percentual de cada tipo de voto com a window function:
-  `100.0 * COUNT(*) / SUM(COUNT(*)) OVER (PARTITION BY d.id, t.codTema)`
-- Sem argumentos, lista todos os temas disponíveis.
+- Junta `voto → pauta → classificacao → tema` para recuperar cada voto registrado do deputado em proposições do tema informado.
+- Percentual por tipo de voto via window function: `100.0 * COUNT(*) / SUM(COUNT(*)) OVER (PARTITION BY d.id, t.codTema)`.
+- `tema` aceita busca parcial (`LIKE %tema%`); retorna 404 se não há resultado.
 
 ---
 
-### Q4 — `q4_escolaridade.py` — Distribuição por escolaridade
+### Q4 — `/q4` — Distribuição por Escolaridade
 
-**Execução:** `python q4_escolaridade.py`
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q4/escolaridade` | Distribuição de deputados por faixa de escolaridade. |
 
 **Método de cálculo:**
-- Agrupa a tabela `deputado` por `escolaridade`.
-- Calcula `COUNT(*)` por grupo e o percentual via window function:
-  `100.0 * COUNT(*) / SUM(COUNT(*)) OVER ()`
-- Valores nulos são exibidos como `(não informado)`.
+- Usa `vw_escolaridade_norm` + `vw_deputado_atual`.
+- `COUNT(*)` por bucket ordinal + percentual via `SUM(COUNT(*)) OVER ()`.
+- Ordenado por `escolaridade_ord` (0 → 4) para eixo lógico nos gráficos.
 
 ---
 
-### Q5 — `q5_fornecedores.py` — Fornecedores por valor recebido
+### Q5 — `/q5` — Fornecedores por Valor Recebido
 
-**Execução:** `python q5_fornecedores.py`
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q5/fornecedores?limit=` | Ranking de fornecedores por valor total recebido (padrão top 50). |
 
 **Método de cálculo:**
-- Agrupa a tabela `gasto` por `txtFornecedor` e `txtCNPJCPF` (filtrando apenas `vlrLiquido > 0`).
-- Calcula `SUM(vlrLiquido)` como total recebido e `AVG(vlrLiquido)` como ticket médio.
-- Conta transações (`COUNT(*)`) e deputados distintos atendidos (`COUNT(DISTINCT idDeCadastro)`).
-- Ordena pelo total recebido decrescente (top 50).
+- Agrupa `gasto` por `txtFornecedor` e `txtCNPJCPF` (apenas `vlrLiquido > 0`).
+- Retorna `SUM(vlrLiquido)` (total recebido), `AVG(vlrLiquido)` (ticket médio), `COUNT(*)` (transações) e `COUNT(DISTINCT idDeCadastro)` (nº de deputados atendidos).
 
 ---
 
-### Q6 — `q6_correlacao_escolaridade.py` — Escolaridade correlacionada
+### Q6 — `/q6` — Correlação Escolaridade
 
-**Execução:** `python q6_correlacao_escolaridade.py`
+#### Endpoints de média por faixa (barras no dashboard)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q6/gastos` | Gastos médios por faixa de escolaridade. |
+| `GET` | `/q6/fidelidade-partidaria` | % médio de fidelidade partidária por faixa. |
+| `GET` | `/q6/proposicoes` | Nº médio de proposições por faixa. |
+| `GET` | `/q6/presenca-eventos` | Nº médio de presenças em eventos/comissões por faixa. |
+| `GET` | `/q6/presenca-plenario` | Nº médio de presenças em Sessões Deliberativas por faixa. |
+
+#### Endpoint de dados individuais (scatter no dashboard)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q6/dados-deputado` | **Uma linha por deputado** com `escolaridade_ord` + as 4 métricas individuais. Alimenta os gráficos de dispersão e o cálculo dos coeficientes de correlação. |
 
 **Método de cálculo por sub-questão:**
 
@@ -681,6 +722,15 @@ Exemplo: `python q3_votacao_tema.py 204554 "Economia"`
 | **6c** | Nº de Proposições | `COUNT(autoria)` por escolaridade; média = total / `COUNT(DISTINCT d.id)` via LEFT JOIN para incluir deputados sem proposições |
 | **6d** | Presença em Eventos | `COUNT(presenca)` por escolaridade; média = total / `COUNT(DISTINCT d.id)` via LEFT JOIN |
 | **6e** | Presença no Plenário | Igual ao 6d, porém filtrando apenas eventos com `descricaoTipo = 'Sessão Deliberativa'` via subquery |
+
+**Cálculo dos coeficientes de correlação (front-end):**
+
+Os coeficientes são calculados no navegador por `src/lib/stats.js` a partir dos dados de `/q6/dados-deputado`:
+
+- **r de Pearson** — mede a correlação linear entre `escolaridade_ord` e a métrica.
+- **ρ de Spearman** — mede a correlação monotônica usando postos. **Mais adequado** aqui porque escolaridade é uma variável ordinal (as distâncias entre níveis não são uniformes); Spearman não assume isso.
+- **Reta de regressão** (`slope`, `intercept`) — calculada pelos mínimos quadrados ordinários e sobreposta ao scatter.
+- **Interpretação textual** automática da força (≥ 0,70 forte · 0,40–0,69 moderada · 0,20–0,39 fraca · < 0,20 muito fraca) e direção do coeficiente.
 
 **Por que o `num_deputados` varia entre as sub-questões?**
 
@@ -704,21 +754,31 @@ As sub-questões 6c, 6d e 6e devem retornar o mesmo `num_deputados` por escolari
 
 ---
 
-### Q8 — `q8_influencia.py` — Deputados por influência no Plenário
+### Q7 — `/q7` — Ranking de Influência
 
-**Execução:** `python q8_influencia.py`
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q7/influencia?limit=` | Deputados ordenados por `pct_influencia` decrescente (padrão top 50, máx. 513). |
 
-**Método de cálculo:**
+**Método de cálculo — `vw_influencia` (`back-end/views.py`):**
+
+Para cada proposição aprovada no Plenário (`siglaOrgao = 'PLEN'`, `aprovacao = 1`), calcula-se a contribuição do deputado como:
 
 ```
-% influência = proposições aprovadas no Plenário de autoria do deputado
-               ─────────────────────────────────────────────────────────
-               total de proposições distintas aprovadas no Plenário
+contribuição = peso_autoria × margem_aprovação
 ```
 
-Implementado com três CTEs:
-1. **`plen_aprovadas`** — proposições distintas que foram aprovadas (`aprovacao = 1`) em votações do Plenário (`siglaOrgao = 'PLEN'`).
-2. **`dep_aprovadas`** — para cada deputado, conta quantas dessas proposições ele é coautor via tabela `autoria`.
-3. **`dep_pauta`** — total de proposições do deputado que entraram em pauta no Plenário (aprovadas ou não), para referência.
+onde:
 
-Ordena pelo `% influência` decrescente (top 50). Só lista deputados com ao menos uma proposição aprovada.
+- **`peso_autoria`**: `1.0` se o deputado é autor principal (`ordemAssinatura ≤ 1` ou `proponente = 1`); senão `1.0 / ordemAssinatura` (2ª assinatura → 0,50; 3ª → 0,33; N-ésima → 1/N).
+- **`margem_aprovação`**: `votosSim / (votosSim + votosNão)`. Votações sem placar registrado recebem fallback `0.5`.
+
+O `score_ponderado` de cada deputado é a soma dessas contribuições sobre todas as suas proposições aprovadas.
+
+O índice final combina score normalizado **(70%)** com taxa de conversão **(30%)**:
+
+```
+pct_influencia = 100 × (0,7 × score / MAX(score) + 0,3 × aprovadas / em_pauta)
+```
+
+CTEs utilizadas: `plen_aprovadas`, `dep_pauta`, `dep_score`, `dep_partido`. Apenas deputados com ≥ 1 proposição aprovada entram no ranking.

@@ -13,13 +13,15 @@ import RankNum from '../shared/RankNum';
 import DataTable from '../shared/DataTable';
 import WordCloudCanvas from './WordCloud';
 import InfoCard from '../shared/InfoCard';
+import TemaDeputadosModal from './TemaDeputadosModal';
 
 ChartJS.register(LinearScale, PointElement, BubbleController, Tooltip, Legend);
 
 export default function Q2Tab() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [data, setData]               = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(null);
+  const [selectedTema, setSelectedTema] = useState(null);
 
   useEffect(() => {
     apiFetch('/q2/ranking-temas')
@@ -29,7 +31,7 @@ export default function Q2Tab() {
   }, []);
 
   if (loading) return <TabSkeleton stats={0} />;
-  if (error) return <ErrorBox message={error} />;
+  if (error)   return <ErrorBox message={error} />;
 
   if (!data.length) {
     return (
@@ -41,7 +43,8 @@ export default function Q2Tab() {
   }
 
   const maxProp = Math.max(...data.map(d => d.num_proposicoes));
-  const lider = data[0];
+  const lider   = data[0];
+
   const bubbleData = {
     datasets: data.map((d, i) => ({
       label: d.tema,
@@ -51,12 +54,14 @@ export default function Q2Tab() {
         r: Math.round(4 + (d.num_proposicoes / maxProp) * 36),
       }],
       backgroundColor: PALETTE[i % PALETTE.length] + 'bb',
-      borderColor: PALETTE[i % PALETTE.length],
+      borderColor:     PALETTE[i % PALETTE.length],
       borderWidth: 1,
     }))
   };
+
   const bubbleOpts = {
-    responsive: true, maintainAspectRatio: false,
+    responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -67,30 +72,39 @@ export default function Q2Tab() {
               ` ${d.tema}`,
               ` Proposições: ${fmtN(d.num_proposicoes)}`,
               ` Deputados: ${fmtN(d.num_deputados)}`,
+              ` Clique para ver os deputados`,
             ];
           }
         }
       }
     },
+    onClick(evt, elements) {
+      if (elements.length > 0) {
+        setSelectedTema(data[elements[0].datasetIndex]);
+      }
+    },
+    onHover(evt, elements) {
+      evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+    },
     scales: {
       x: {
         title: { display: true, text: 'Nº de deputados', color: tickColor, font: baseFont },
-        grid: { color: gridColor },
+        grid:  { color: gridColor },
         ticks: { color: tickColor, font: baseFont },
       },
       y: {
         title: { display: true, text: 'Nº de proposições', color: tickColor, font: baseFont },
-        grid: { color: gridColor },
+        grid:  { color: gridColor },
         ticks: { color: tickColor, font: baseFont, callback: v => fmtN(v) },
       }
     }
   };
 
   const columns = [
-    { key: 'rank', header: '#', render: (_, i) => <RankNum rank={i + 1} /> },
-    { key: 'tema', header: 'Tema', sortable: true, sortValue: d => d.tema },
-    { key: 'num_proposicoes', header: 'Proposições', align: 'right', sortable: true, sortValue: d => d.num_proposicoes, render: d => fmtN(d.num_proposicoes) },
-    { key: 'num_deputados', header: 'Deputados', align: 'right', sortable: true, sortValue: d => d.num_deputados, render: d => fmtN(d.num_deputados) },
+    { key: 'rank',             header: '#',           render: (_, i) => <RankNum rank={i + 1} /> },
+    { key: 'tema',             header: 'Tema',        sortable: true, sortValue: d => d.tema },
+    { key: 'num_proposicoes',  header: 'Proposições', align: 'right', sortable: true, sortValue: d => d.num_proposicoes, render: d => fmtN(d.num_proposicoes) },
+    { key: 'num_deputados',    header: 'Deputados',   align: 'right', sortable: true, sortValue: d => d.num_deputados,   render: d => fmtN(d.num_deputados) },
   ];
 
   return (
@@ -100,11 +114,14 @@ export default function Q2Tab() {
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3>Nuvem de palavras — eixos de atuação (tamanho ∝ nº de proposições)</h3>
-        <WordCloudCanvas data={data} />
+        <WordCloudCanvas data={data} onTemaClick={setSelectedTema} />
       </div>
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3>Proposições × deputados (tamanho da bolha ∝ nº de proposições)</h3>
+        <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>
+          Clique em uma bolha para ver os deputados do tema
+        </p>
         <div className="chart-wrap-tall">
           <Bubble
             data={bubbleData}
@@ -120,8 +137,10 @@ export default function Q2Tab() {
         <DataTable
           columns={columns}
           rows={data}
-          rowKey={d => d.tema}
+          rowKey={d => d.codTema}
           search={{ placeholder: 'Buscar tema…', accessor: d => d.tema }}
+          onRowClick={setSelectedTema}
+          rowTitle="Ver deputados deste tema"
         />
       </div>
 
@@ -134,8 +153,15 @@ export default function Q2Tab() {
           <li><strong>Deputados envolvidos</strong>: número de parlamentares distintos que assinaram ao menos uma proposição classificada no tema — como autor principal ou coautor.</li>
         </ul>
         <p><strong>Fórmula:</strong> <code>num_proposicoes(tema) = COUNT(proposições classificadas no tema)</code>. O tamanho de cada palavra na nuvem e de cada bolha no gráfico é diretamente proporcional a esse contador.</p>
-        <p><strong>Exemplo ilustrativo:</strong> se "Saúde" tem 320 proposições e "Esporte" tem 40, a palavra "Saúde" aparece com tamanho de fonte e bolha aproximadamente 8 vezes maior, pois <code>320 / 40 = 8</code>.</p>
+        <p><strong>Interação:</strong> clique em qualquer bolha no gráfico, palavra na nuvem ou linha na tabela para ver os 15 deputados com mais proposições naquele tema.</p>
       </InfoCard>
+
+      {selectedTema && (
+        <TemaDeputadosModal
+          tema={selectedTema}
+          onClose={() => setSelectedTema(null)}
+        />
+      )}
     </>
   );
 }
