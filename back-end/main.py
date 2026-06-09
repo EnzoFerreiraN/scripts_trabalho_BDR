@@ -1,9 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from database import get_connection
+from views import init_views
 from routers import q1_gastos, q2_eixo_atuacao, q3_votacao_tema, q4_escolaridade, q5_fornecedores, q6_correlacao, q7_influencia
 
 app = FastAPI(title="Câmara dos Deputados API", version="1.0.0")
+
+
+@app.on_event("startup")
+def startup():
+    conn = get_connection()
+    init_views(conn)
+    conn.close()
 
 app.add_middleware(
     CORSMiddleware,

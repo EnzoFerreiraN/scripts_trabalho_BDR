@@ -126,8 +126,15 @@ export default function Q2Tab() {
       </div>
 
       <InfoCard>
-        <p>Proposições legislativas (PLs, PDCs, etc.) classificadas por tema conforme o <strong>sistema de temas legislativos da Câmara dos Deputados</strong>. O número de proposições e de deputados envolvidos por tema foi apurado pelo vínculo entre as tabelas <code>autoria</code> e <code>classificacao</code>.</p>
-        <p>O <strong>tamanho das palavras</strong> na nuvem e das bolhas no gráfico é proporcional ao número de proposições registradas no tema.</p>
+        <p>Proposições legislativas classificadas por tema conforme o <strong>sistema de temas legislativos da Câmara dos Deputados</strong>. O número de proposições e de deputados envolvidos por tema foi apurado cruzando as tabelas <code>autoria</code> e <code>classificacao</code>.</p>
+        <p><strong>Termos técnicos:</strong></p>
+        <ul>
+          <li><strong>Proposição</strong>: qualquer proposta legislativa formal — PL (Projeto de Lei), PLP (Projeto de Lei Complementar), PEC (Proposta de Emenda Constitucional), PDC (Projeto de Decreto Legislativo), entre outras.</li>
+          <li><strong>Tema legislativo</strong>: categoria temática atribuída pela Câmara (ex.: "Saúde", "Tributação", "Segurança Pública"). Uma proposição pode estar associada a mais de um tema.</li>
+          <li><strong>Deputados envolvidos</strong>: número de parlamentares distintos que assinaram ao menos uma proposição classificada no tema — como autor principal ou coautor.</li>
+        </ul>
+        <p><strong>Fórmula:</strong> <code>num_proposicoes(tema) = COUNT(proposições classificadas no tema)</code>. O tamanho de cada palavra na nuvem e de cada bolha no gráfico é diretamente proporcional a esse contador.</p>
+        <p><strong>Exemplo ilustrativo:</strong> se "Saúde" tem 320 proposições e "Esporte" tem 40, a palavra "Saúde" aparece com tamanho de fonte e bolha aproximadamente 8 vezes maior, pois <code>320 / 40 = 8</code>.</p>
       </InfoCard>
     </>
   );

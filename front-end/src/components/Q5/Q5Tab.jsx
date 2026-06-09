@@ -100,8 +100,20 @@ export default function Q5Tab() {
       </div>
 
       <InfoCard>
-        <p>Fornecedores identificados pelo <strong>CNPJ ou CPF</strong> nas notas fiscais da CEAP. O ranking é baseado no valor total recebido por empresa ou pessoa física no período analisado.</p>
-        <p>Um mesmo fornecedor pode atender múltiplos deputados de partidos diferentes. O <strong>ticket médio</strong> é calculado dividindo o total recebido pelo número de transações registradas.</p>
+        <p>Ranking dos maiores recebedores de recursos da CEAP no período 2023–2026. Cada fornecedor é identificado pelo <strong>CNPJ ou CPF</strong> cadastrado nas notas fiscais emitidas pelos deputados.</p>
+        <p><strong>Termos técnicos:</strong></p>
+        <ul>
+          <li><strong>Fornecedor</strong>: empresa (CNPJ) ou pessoa física (CPF) que recebeu pagamento via CEAP — companhia aérea, gráfica, posto de combustível, escritório de consultoria, etc. Um mesmo CNPJ pode ter atendido vários deputados de partidos e UFs diferentes, e aparece uma única vez no ranking consolidado.</li>
+          <li><strong><code>total_recebido</code></strong>: <code>SOMA(vlrLiquido)</code> de todas as notas emitidas para o fornecedor no período.</li>
+          <li><strong>Ticket médio</strong>: <code>total_recebido / nº_de_transações</code> — valor médio por nota fiscal.</li>
+          <li><strong>Categoria</strong>: tipo de despesa predominante das notas associadas ao fornecedor, conforme a classificação da Câmara.</li>
+        </ul>
+        <p><strong>Exemplo ilustrativo</strong> — fornecedor com 30 notas no período:</p>
+        <ol>
+          <li>Total recebido: <code>R$ 90.000</code></li>
+          <li>Ticket médio: <code>90.000 / 30 = R$ 3.000</code> por transação</li>
+          <li>Se esse CNPJ atendeu 15 deputados distintos, ainda assim ocupa uma única posição no ranking, com o total consolidado.</li>
+        </ol>
       </InfoCard>
     </>
   );

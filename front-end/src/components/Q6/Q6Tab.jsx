@@ -280,8 +280,26 @@ export default function Q6Tab() {
       {activeSub === 'presenca'    && <SubPresenca    data={plen} />}
 
       <InfoCard>
-        <p>Análise de correlação entre o <strong>nível de escolaridade declarado</strong> e quatro métricas de comportamento parlamentar: gastos da CEAP, fidelidade a orientações partidárias, número de proposições e presença em sessões do plenário.</p>
-        <p><strong>Atenção:</strong> correlação não implica causalidade. O tamanho dos grupos por nível varia significativamente — níveis com poucos deputados podem apresentar médias mais voláteis. Use as abas acima para explorar cada dimensão separadamente.</p>
+        <p>Esta seção compara o <strong>nível de escolaridade declarado</strong> com quatro métricas de comportamento parlamentar. Para cada faixa de escolaridade, calcula-se a <strong>média (ou percentual médio) do grupo</strong>; a "correlação" é a <strong>tendência observada</strong> ao comparar esses valores entre as faixas no gráfico.</p>
+        <p><strong>Atenção metodológica:</strong> esta análise <strong>não calcula um coeficiente de correlação estatístico</strong> (como Pearson ou Spearman). Ela agrupa deputados por nível de escolaridade e compara as médias e percentuais de cada grupo. Grupos com poucos deputados podem exibir médias mais voláteis. O nível <strong>"Sem informação"</strong> é <strong>excluído</strong> desta análise (diferente do Q4, que o inclui na contagem geral).</p>
+        <p><strong>O que cada aba mede:</strong></p>
+        <ul>
+          <li><strong>Gastos</strong>: média de <code>SOMA(vlrLiquido)</code> por deputado dentro de cada faixa de escolaridade.</li>
+          <li><strong>Fidelidade</strong>: percentual médio de votos alinhados à <em>orientação de bancada</em> — quando o deputado vota igual à orientação declarada pelo líder do seu partido na votação.</li>
+          <li><strong>Proposições</strong>: média do número de proposições com autoria (principal ou coautoria) por deputado, por faixa.</li>
+          <li><strong>Presença</strong>: média de presenças registradas em sessões do plenário por deputado, por faixa.</li>
+        </ul>
+        <p><strong>Termos técnicos:</strong></p>
+        <ul>
+          <li><strong>Orientação de bancada / fidelidade partidária</strong>: em cada votação nominal, o líder do partido declara uma orientação (Sim, Não, Liberado). O deputado é considerado "fiel" quando o seu voto coincide com essa orientação.</li>
+          <li><strong>Faixa de escolaridade</strong>: os 4 níveis ordinais com dados (Fundamental, Médio, Superior, Pós-graduação), conforme o mapeamento definido no Q4.</li>
+        </ul>
+        <p><strong>Exemplo ilustrativo</strong> — cálculo de fidelidade para um deputado:</p>
+        <ol>
+          <li>Deputado participou de 100 votações nominais com orientação declarada pelo partido.</li>
+          <li>Em 82 delas, votou igual à orientação: <code>fidelidade = 82 / 100 = 82%</code>.</li>
+          <li>A faixa "Pós-graduação" exibe a <strong>média desses percentuais</strong> entre todos os seus deputados — não um coeficiente calculado sobre o conjunto total.</li>
+        </ol>
       </InfoCard>
     </>
   );

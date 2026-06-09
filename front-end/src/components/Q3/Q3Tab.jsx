@@ -90,9 +90,9 @@ export default function Q3Tab() {
 
       {result && (
         <>
-          <div className="q3-hero">
+          <div className="detail-hero">
             <Avatar urlFoto={result.urlFoto} nome={result.nome} size="lg" />
-            <div className="q3-hero-info">
+            <div className="detail-hero-info">
               <div className="dep-name">{result.nome}</div>
               <div className="dep-sub">ID {selectedDep?.id}</div>
               <div className="dep-total">{fmtN(result.total)} votos computados no tema "{selectedTema}"</div>
@@ -141,8 +141,23 @@ export default function Q3Tab() {
       )}
 
       <InfoCard>
-        <p>Registros de <strong>votação nominal</strong> extraídos das sessões do plenário. O padrão de votação é calculado contando a frequência de cada tipo de voto (<strong>Sim, Não, Abstenção, Obstrução, Art. 17</strong>) do deputado selecionado nas votações classificadas no tema escolhido.</p>
+        <p>Registros de <strong>votação nominal</strong> extraídos das sessões do plenário. O padrão de votação é calculado contando a frequência de cada tipo de voto do deputado selecionado nas votações classificadas no tema escolhido.</p>
         <p>Selecione um deputado pelo nome e um tema legislativo, depois clique em <strong>Buscar</strong> para carregar o padrão de votos.</p>
+        <p><strong>Tipos de voto registrados:</strong></p>
+        <ul>
+          <li><strong>Sim / Não</strong>: voto favorável ou contrário à proposição em pauta.</li>
+          <li><strong>Abstenção</strong>: o deputado estava presente na sessão mas optou por não votar.</li>
+          <li><strong>Obstrução</strong>: estratégia partidária de ausência coletiva para impedir o quórum de votação.</li>
+          <li><strong>Art. 17</strong>: ausência justificada por licença médica, missão oficial ou outro dispositivo do regimento interno.</li>
+          <li><strong>Votação nominal</strong>: modalidade em que o voto de cada deputado é registrado individualmente — distinta da votação simbólica, onde apenas o resultado coletivo consta.</li>
+        </ul>
+        <p><strong>Fórmula do percentual:</strong> <code>% = 100 × votos_do_tipo / total_de_votos_do_deputado_no_tema</code>. A distribuição é calculada <em>dentro</em> do par (deputado, tema) selecionado.</p>
+        <p><strong>Exemplo ilustrativo</strong> — deputado com 50 votos registrados no tema "Saúde":</p>
+        <ol>
+          <li>Sim: 40 votos → <code>40 / 50 = 80%</code></li>
+          <li>Não: 8 votos → <code>8 / 50 = 16%</code></li>
+          <li>Abstenção: 2 votos → <code>2 / 50 = 4%</code></li>
+        </ol>
       </InfoCard>
     </>
   );

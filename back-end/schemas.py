@@ -125,5 +125,6 @@ class Influencia(BaseModel):
     aprovadas_pelo_dep: int
     taxa_aprovacao: Optional[float]
     total_aprovadas: int
+    score_ponderado: float = 0.0   # peso por papel (autoria) × margem de aprovação
     pct_influencia: float
     urlFoto: Optional[str] = None

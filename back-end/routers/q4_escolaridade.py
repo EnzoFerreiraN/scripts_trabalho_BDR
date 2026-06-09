@@ -4,15 +4,17 @@ from schemas import EscolaridadeDistribuicao
 
 router = APIRouter()
 
+# Usa vw_escolaridade_norm (5 buckets ordinais) e vw_deputado_atual
+# (844 deputados com gastos 2023-2026). Ordenado por escolaridade_ord (0→4).
 SQL = """
 SELECT
-    COALESCE(escolaridade, '(não informado)')   AS escolaridade,
-    COUNT(*)                                    AS num_deputados,
-    ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS pct
-FROM deputado
-WHERE id IN (SELECT DISTINCT idDeCadastro FROM gasto)
-GROUP BY escolaridade
-ORDER BY num_deputados DESC;
+    en.escolaridade,
+    COUNT(*)                                               AS num_deputados,
+    ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1)    AS pct
+FROM vw_escolaridade_norm en
+WHERE en.dep_id IN (SELECT id FROM vw_deputado_atual)
+GROUP BY en.escolaridade, en.escolaridade_ord
+ORDER BY en.escolaridade_ord;
 """
 
 

@@ -1,34 +1,23 @@
 from fastapi import APIRouter, Query
 from database import get_connection
-from schemas import GastoDeputado, GastoDetalhe
+from schemas import GastoDeputado, GastoDetalhe, DeputadoBasico
 
 router = APIRouter()
 
-# Uma linha por deputado: total e nº de transações somam todos os partidos;
-# partido/UF vêm da transação mais recente (numAno, numMes, ideDocumento).
+# Lista leve para o autocomplete de busca.
+SQL_DEPUTADOS = """
+SELECT d.id, d.nome, d.urlFoto
+FROM vw_gasto_deputado g
+JOIN deputado d ON d.id = g.id
+ORDER BY d.nome;
+"""
+
+# Uma linha por deputado via vw_gasto_deputado (ver views.py).
 SQL = """
-WITH agg AS (
-    SELECT idDeCadastro AS id,
-           COUNT(ideDocumento)        AS num_transacoes,
-           ROUND(SUM(vlrLiquido), 2)  AS total_gasto
-    FROM gasto
-    GROUP BY idDeCadastro
-),
-recente AS (
-    SELECT idDeCadastro AS id, sgPartido, sgUF,
-           ROW_NUMBER() OVER (
-               PARTITION BY idDeCadastro
-               ORDER BY numAno DESC, numMes DESC, ideDocumento DESC
-           ) AS rn
-    FROM gasto
-)
-SELECT d.nome, d.id, d.urlFoto,
-       r.sgPartido AS partido, r.sgUF AS uf,
-       a.num_transacoes, a.total_gasto
-FROM agg a
-JOIN deputado d ON d.id = a.id
-JOIN recente  r ON r.id = a.id AND r.rn = 1
-ORDER BY a.total_gasto DESC
+SELECT d.nome, g.id, d.urlFoto, g.partido, g.uf, g.num_transacoes, g.total_gasto
+FROM vw_gasto_deputado g
+JOIN deputado d ON d.id = g.id
+ORDER BY g.total_gasto DESC
 {limit_clause};
 """
 
@@ -46,6 +35,16 @@ WHERE idDeCadastro = :deputado_id
 GROUP BY txtDescricao
 ORDER BY total DESC;
 """
+
+
+@router.get("/deputados", response_model=list[DeputadoBasico])
+def listar_deputados():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(SQL_DEPUTADOS)
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 @router.get("/gastos-deputados", response_model=list[GastoDeputado])

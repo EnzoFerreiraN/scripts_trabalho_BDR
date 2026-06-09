@@ -97,6 +97,16 @@ export default function Q4Tab() {
       <InfoCard>
         <p>Escolaridade <strong>declarada pelo próprio parlamentar</strong> no cadastro oficial da Câmara dos Deputados. Os dados refletem as informações prestadas no momento do registro.</p>
         <p><strong>Atenção:</strong> não há verificação independente da escolaridade informada — o dado é autorreferido.</p>
+        <p>Os 17 valores brutos do sistema foram <strong>consolidados em 5 níveis ordinais</strong> pelo critério do maior nível <em>concluído</em> — cursos incompletos contam como o nível anterior. Veja o agrupamento:</p>
+        <ul>
+          <li><strong>Sem informação</strong> — cadastro sem escolaridade registrada</li>
+          <li><strong>Fundamental</strong> — <code>Primário</code> · <code>Primário Incompleto</code> · <code>Ginasial</code> · <code>Ensino Fundamental</code> · <code>Ensino Fundamental Incompleto</code></li>
+          <li><strong>Médio</strong> — <code>Secundário</code> · <code>Secundário Incompleto</code> · <code>Ensino Médio</code> · <code>Ensino Médio Incompleto</code> · <code>Ensino Técnico</code> · <code>Superior Incompleto</code></li>
+          <li><strong>Superior</strong> — <code>Superior</code> · <code>Mestrado Incompleto</code> · <code>Doutorado Incompleto</code></li>
+          <li><strong>Pós-graduação</strong> — <code>Pós-Graduação</code> · <code>Mestrado</code> · <code>Doutorado</code></li>
+        </ul>
+        <p><strong>Fórmula do percentual na tabela:</strong> <code>% = 100 × num_deputados_no_nível / total_de_deputados</code>.</p>
+        <p><strong>Nota:</strong> o nível "Sem informação" <strong>está incluído</strong> nesta contagem geral. Na análise de correlação com comportamento parlamentar (aba Q6), ele é <strong>excluído</strong> para não distorcer as médias de grupo.</p>
       </InfoCard>
     </>
   );
