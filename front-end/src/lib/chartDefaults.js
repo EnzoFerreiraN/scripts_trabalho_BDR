@@ -1,16 +1,24 @@
+// Categorical palette tuned for a light background: mid-lightness, saturated
+// tones that stay legible on white. Keep this in sync with the tokens in
+// global.css (light editorial theme).
 export const PALETTE = [
-  '#4f8ef7','#7c5cfc','#34d399','#fbbf24','#f87171','#38bdf8',
-  '#a78bfa','#fb923c','#4ade80','#f472b6','#60a5fa','#facc15',
-  '#c084fc','#2dd4bf','#fb7185','#a3e635','#818cf8','#e879f9'
+  '#4f46e5','#0d9488','#d97706','#db2777','#2563eb','#7c3aed',
+  '#059669','#ea580c','#e11d48','#0891b2','#9333ea','#ca8a04',
+  '#16a34a','#c026d3','#dc2626','#65a30d','#4338ca','#0284c7'
 ];
 
 export const VOTE_COLORS = {
-  'Sim': '#34d399', 'Não': '#f87171',
-  'Abstenção': '#fbbf24', 'Obstrução': '#818cf8', 'Artigo 17': '#fb923c'
+  'Sim': '#059669', 'Não': '#dc2626',
+  'Abstenção': '#d97706', 'Obstrução': '#6366f1', 'Artigo 17': '#ea580c'
 };
 
-export const baseFont = { color: '#8892a4', family: "'Segoe UI', sans-serif", size: 11 };
-export const gridColor = 'rgba(42,45,62,0.8)';
+// Shared chart chrome colors (light theme).
+export const tickColor = '#55556a';   // axis ticks / muted labels
+export const legendColor = '#26263a'; // legend text (ink)
+export const gridColor = 'rgba(20,20,40,0.08)';
+export const wordcloudBg = '#ffffff';
+
+export const baseFont = { color: tickColor, family: "'Inter', system-ui, sans-serif", size: 11 };
 
 export function hBarData(labels, data) {
   return {
@@ -29,8 +37,8 @@ export function hBarOptions(fmtFn) {
       tooltip: { callbacks: { label: c => ' ' + (fmtFn ? fmtFn(c.raw) : c.raw) } }
     },
     scales: {
-      x: { grid: { color: gridColor }, ticks: { color: '#8892a4', font: baseFont } },
-      y: { grid: { display: false }, ticks: { color: '#e2e6f0', font: { size: 10 } } }
+      x: { grid: { color: gridColor }, ticks: { color: tickColor, font: baseFont } },
+      y: { grid: { display: false }, ticks: { color: legendColor, font: { size: 10, family: baseFont.family } } }
     }
   };
 }

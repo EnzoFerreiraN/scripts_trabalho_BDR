@@ -5,8 +5,10 @@ import {
 } from 'chart.js';
 import { apiFetch } from '../../lib/api';
 import { fmt, fmtN, pct } from '../../lib/formatters';
-import { PALETTE, baseFont, gridColor } from '../../lib/chartDefaults';
-import LoadingSpinner from '../shared/LoadingSpinner';
+import { PALETTE, baseFont, gridColor, tickColor, legendColor } from '../../lib/chartDefaults';
+import TabSkeleton from '../shared/Skeleton';
+import ErrorBox from '../shared/ErrorBox';
+import EmptyState from '../shared/EmptyState';
 import InfoCard from '../shared/InfoCard';
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -30,15 +32,15 @@ function barCfg(labels, values, color, fmtFn, maxY, grouped) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: grouped ? { display: true, labels: { color: '#e2e6f0', font: baseFont, boxWidth: 12 } } : { display: false },
+        legend: grouped ? { display: true, labels: { color: legendColor, font: baseFont, boxWidth: 12 } } : { display: false },
         tooltip: { callbacks: { label: c => ' ' + (fmtFn ? fmtFn(c.raw) : fmtN(c.raw)) } }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#8892a4', font: baseFont } },
+        x: { grid: { display: false }, ticks: { color: tickColor, font: baseFont } },
         y: {
           ...(maxY ? { max: maxY } : {}),
           grid: { color: gridColor },
-          ticks: { color: '#8892a4', font: baseFont, callback: fmtFn || (v => fmtN(v)) }
+          ticks: { color: tickColor, font: baseFont, callback: fmtFn || (v => fmtN(v)) }
         }
       }
     }
@@ -67,16 +69,26 @@ function SubGastos({ data }) {
       </div>
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3>Média de gasto por deputado (por nível de escolaridade)</h3>
-        <div className="chart-wrap"><Bar data={mediaGasto.data} options={mediaGasto.options} /></div>
+        <div className="chart-wrap">
+          <Bar data={mediaGasto.data} options={mediaGasto.options}
+            role="img"
+            aria-label={`Média de gasto por deputado por nível de escolaridade. Maior: ${maxMedia.escolaridade}, ${fmt(maxMedia.media_gasto_por_deputado)}.`} />
+        </div>
       </div>
       <div className="grid-2">
         <div className="card">
           <h3>Total gasto absoluto por nível</h3>
-          <div className="chart-wrap"><Bar data={totalGasto.data} options={totalGasto.options} /></div>
+          <div className="chart-wrap">
+            <Bar data={totalGasto.data} options={totalGasto.options}
+              role="img" aria-label="Total gasto absoluto por nível de escolaridade." />
+          </div>
         </div>
         <div className="card">
           <h3>Média de gasto por transação</h3>
-          <div className="chart-wrap"><Bar data={mediaTrx.data} options={mediaTrx.options} /></div>
+          <div className="chart-wrap">
+            <Bar data={mediaTrx.data} options={mediaTrx.options}
+              role="img" aria-label="Média de gasto por transação por nível de escolaridade." />
+          </div>
         </div>
       </div>
     </>
@@ -119,11 +131,18 @@ function SubFidelidade({ data }) {
       </div>
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3>% Fidelidade por nível de escolaridade</h3>
-        <div className="chart-wrap"><Bar data={pctFid.data} options={pctFid.options} /></div>
+        <div className="chart-wrap">
+          <Bar data={pctFid.data} options={pctFid.options}
+            role="img"
+            aria-label={`Percentual de fidelidade partidária por nível de escolaridade. Média geral: ${pct(mediaFid)}.`} />
+        </div>
       </div>
       <div className="card">
         <h3>Volume de votos: fiéis vs total com orientação</h3>
-        <div className="chart-wrap"><Bar data={volumeChart.data} options={volumeChart.options} /></div>
+        <div className="chart-wrap">
+          <Bar data={volumeChart.data} options={volumeChart.options}
+            role="img" aria-label="Volume de votos fiéis comparado ao total de votos com orientação partidária, por nível de escolaridade." />
+        </div>
       </div>
     </>
   );
@@ -150,11 +169,18 @@ function SubProposicoes({ data }) {
       </div>
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3>Média de proposições por deputado (por nível de escolaridade)</h3>
-        <div className="chart-wrap"><Bar data={mediaChart.data} options={mediaChart.options} /></div>
+        <div className="chart-wrap">
+          <Bar data={mediaChart.data} options={mediaChart.options}
+            role="img"
+            aria-label={`Média de proposições por deputado por nível de escolaridade. Maior: ${maxMedia.escolaridade}, ${fmtN(+maxMedia.media_por_deputado.toFixed(1))}.`} />
+        </div>
       </div>
       <div className="card">
         <h3>Total absoluto de proposições por nível</h3>
-        <div className="chart-wrap"><Bar data={totalChart.data} options={totalChart.options} /></div>
+        <div className="chart-wrap">
+          <Bar data={totalChart.data} options={totalChart.options}
+            role="img" aria-label="Total absoluto de proposições por nível de escolaridade." />
+        </div>
       </div>
     </>
   );
@@ -181,11 +207,18 @@ function SubPresenca({ data }) {
       </div>
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3>Média de presenças no plenário (por nível de escolaridade)</h3>
-        <div className="chart-wrap"><Bar data={mediaChart.data} options={mediaChart.options} /></div>
+        <div className="chart-wrap">
+          <Bar data={mediaChart.data} options={mediaChart.options}
+            role="img"
+            aria-label={`Média de presenças no plenário por deputado por nível de escolaridade. Maior: ${maxMedia.escolaridade}, ${fmtN(+maxMedia.media_por_deputado.toFixed(1))}.`} />
+        </div>
       </div>
       <div className="card">
         <h3>Total absoluto de presenças por nível</h3>
-        <div className="chart-wrap"><Bar data={totalChart.data} options={totalChart.options} /></div>
+        <div className="chart-wrap">
+          <Bar data={totalChart.data} options={totalChart.options}
+            role="img" aria-label="Total absoluto de presenças no plenário por nível de escolaridade." />
+        </div>
       </div>
     </>
   );
@@ -197,6 +230,7 @@ export default function Q6Tab() {
   const [prop, setProp]       = useState([]);
   const [plen, setPlen]       = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeSub, setActiveSub] = useState('gastos');
 
   useEffect(() => {
@@ -207,12 +241,21 @@ export default function Q6Tab() {
       apiFetch('/q6/presenca-plenario'),
     ]).then(([g, f, p, pl]) => {
       setGastos(g); setFid(f); setProp(p); setPlen(pl);
-    }).catch(console.error)
+    }).catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
-  if (!gastos.length) return null;
+  if (loading) return <TabSkeleton stats={2} />;
+  if (error) return <ErrorBox message={error} />;
+
+  if (!gastos.length) {
+    return (
+      <>
+        <p className="section-title">Escolaridade &amp; comportamento parlamentar</p>
+        <EmptyState hint="Nenhum dado de comportamento parlamentar foi retornado." />
+      </>
+    );
+  }
 
   return (
     <>

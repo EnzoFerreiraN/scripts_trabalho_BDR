@@ -6,9 +6,11 @@ import {
 } from 'chart.js';
 import { apiFetch } from '../../lib/api';
 import { fmtN, pct } from '../../lib/formatters';
-import { PALETTE, baseFont, gridColor } from '../../lib/chartDefaults';
-import LoadingSpinner from '../shared/LoadingSpinner';
-import RankNum from '../shared/RankNum';
+import { PALETTE, baseFont, gridColor, tickColor, legendColor } from '../../lib/chartDefaults';
+import TabSkeleton from '../shared/Skeleton';
+import ErrorBox from '../shared/ErrorBox';
+import EmptyState from '../shared/EmptyState';
+import DataTable from '../shared/DataTable';
 import InfoCard from '../shared/InfoCard';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -16,16 +18,26 @@ ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Le
 export default function Q4Tab() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     apiFetch('/q4/escolaridade')
       .then(setData)
-      .catch(console.error)
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
-  if (!data.length) return null;
+  if (loading) return <TabSkeleton stats={0} />;
+  if (error) return <ErrorBox message={error} />;
+
+  if (!data.length) {
+    return (
+      <>
+        <p className="section-title">Escolaridade dos deputados</p>
+        <EmptyState hint="Nenhum dado de escolaridade foi retornado." />
+      </>
+    );
+  }
 
   const labels = data.map(d => d.escolaridade);
   const vals   = data.map(d => d.num_deputados);
@@ -34,7 +46,7 @@ export default function Q4Tab() {
   const pieData = { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }] };
   const pieOpts = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'right', labels: { color: '#e2e6f0', font: baseFont, boxWidth: 12 } } }
+    plugins: { legend: { position: 'right', labels: { color: legendColor, font: baseFont, boxWidth: 12 } } }
   };
 
   const barData = { labels, datasets: [{ data: vals, backgroundColor: colors, borderRadius: 6 }] };
@@ -42,10 +54,16 @@ export default function Q4Tab() {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { display: false }, ticks: { color: '#8892a4', font: baseFont } },
-      y: { grid: { color: gridColor }, ticks: { color: '#8892a4', font: baseFont } }
+      x: { grid: { display: false }, ticks: { color: tickColor, font: baseFont } },
+      y: { grid: { color: gridColor }, ticks: { color: tickColor, font: baseFont } }
     }
   };
+
+  const columns = [
+    { key: 'escolaridade', header: 'Escolaridade', sortable: true, sortValue: d => d.escolaridade },
+    { key: 'num_deputados', header: 'Deputados', align: 'right', sortable: true, sortValue: d => d.num_deputados, render: d => fmtN(d.num_deputados) },
+    { key: 'pct', header: '%', align: 'right', sortable: true, sortValue: d => d.pct, render: d => pct(d.pct) },
+  ];
 
   return (
     <>
@@ -54,34 +72,26 @@ export default function Q4Tab() {
 
       <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
         <div className="card">
-          <h3>Pizza por escolaridade</h3>
-          <div className="chart-wrap"><Doughnut data={pieData} options={pieOpts} /></div>
+          <h3>Distribuição por escolaridade</h3>
+          <div className="chart-wrap">
+            <Doughnut data={pieData} options={pieOpts}
+              role="img"
+              aria-label={`Distribuição dos deputados por escolaridade declarada: ${data.map(d => `${d.escolaridade} ${fmtN(d.num_deputados)}`).join(', ')}.`} />
+          </div>
         </div>
         <div className="card">
-          <h3>Barras — deputados por nível</h3>
-          <div className="chart-wrap"><Bar data={barData} options={barOpts} /></div>
+          <h3>Deputados por nível</h3>
+          <div className="chart-wrap">
+            <Bar data={barData} options={barOpts}
+              role="img"
+              aria-label={`Número de deputados por nível de escolaridade. Maior grupo: ${data.reduce((m, d) => d.num_deputados > m.num_deputados ? d : m, data[0]).escolaridade}.`} />
+          </div>
         </div>
       </div>
 
       <div className="card">
-        <div className="table-wrap">
-          <table>
-            <thead><tr>
-              <th>Escolaridade</th>
-              <th style={{ textAlign: 'right' }}>Deputados</th>
-              <th style={{ textAlign: 'right' }}>%</th>
-            </tr></thead>
-            <tbody>
-              {data.map(d => (
-                <tr key={d.escolaridade}>
-                  <td>{d.escolaridade}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtN(d.num_deputados)}</td>
-                  <td style={{ textAlign: 'right' }}>{pct(d.pct)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h3>Tabela de escolaridade</h3>
+        <DataTable columns={columns} rows={data} rowKey={d => d.escolaridade} />
       </div>
 
       <InfoCard>

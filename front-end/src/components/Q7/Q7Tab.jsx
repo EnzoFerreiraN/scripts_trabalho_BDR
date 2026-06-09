@@ -6,11 +6,13 @@ import {
 import { apiFetch } from '../../lib/api';
 import { fmtN, pct, shortName } from '../../lib/formatters';
 import { hBarData, hBarOptions } from '../../lib/chartDefaults';
-import LoadingSpinner from '../shared/LoadingSpinner';
+import TabSkeleton from '../shared/Skeleton';
 import ErrorBox from '../shared/ErrorBox';
+import EmptyState from '../shared/EmptyState';
 import Avatar from '../shared/Avatar';
 import Badge from '../shared/Badge';
 import RankNum from '../shared/RankNum';
+import DataTable from '../shared/DataTable';
 import Podium from './Podium';
 import InfoCard from '../shared/InfoCard';
 
@@ -24,13 +26,21 @@ export default function Q7Tab() {
   useEffect(() => {
     apiFetch('/q7/influencia?limit=100')
       .then(setData)
-      .catch(e => setError('Erro ao carregar: ' + e.message))
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <TabSkeleton stats={3} />;
   if (error) return <ErrorBox message={error} />;
-  if (!data.length) return null;
+
+  if (!data.length) {
+    return (
+      <>
+        <p className="section-title">Influência parlamentar</p>
+        <EmptyState hint="Nenhum dado de influência foi retornado." />
+      </>
+    );
+  }
 
   const top20 = data.slice(0, 20);
   const nameLabel = d => shortName(d.nome).split(' ').slice(0, 2).join(' ');
@@ -40,6 +50,25 @@ export default function Q7Tab() {
 
   const aprovData = hBarData(top20.map(nameLabel), top20.map(d => d.taxa_aprovacao));
   const aprovOpts = hBarOptions(v => pct(v));
+
+  const columns = [
+    { key: 'rank', header: '#', render: (_, i) => <RankNum rank={i + 1} /> },
+    {
+      key: 'nome', header: 'Deputado', sortable: true, sortValue: d => d.nome,
+      render: d => (
+        <div className="td-deputy">
+          <Avatar urlFoto={d.urlFoto} nome={d.nome} size="sm" />
+          <span className="td-deputy-name">{d.nome}</span>
+        </div>
+      )
+    },
+    { key: 'partido', header: 'Partido', sortable: true, sortValue: d => d.partido, render: d => <Badge variant="blue">{d.partido}</Badge> },
+    { key: 'uf', header: 'UF', sortable: true, sortValue: d => d.uf },
+    { key: 'em_pauta_plen', header: 'Em pauta', align: 'right', sortable: true, sortValue: d => d.em_pauta_plen, render: d => fmtN(d.em_pauta_plen) },
+    { key: 'aprovadas_pelo_dep', header: 'Aprovadas', align: 'right', sortable: true, sortValue: d => d.aprovadas_pelo_dep, render: d => fmtN(d.aprovadas_pelo_dep) },
+    { key: 'taxa_aprovacao', header: 'Taxa aprov.', align: 'right', sortable: true, sortValue: d => d.taxa_aprovacao, render: d => pct(d.taxa_aprovacao) },
+    { key: 'pct_influencia', header: '% Influência', align: 'right', bold: true, sortable: true, sortValue: d => d.pct_influencia, render: d => pct(d.pct_influencia) },
+  ];
 
   return (
     <>
@@ -66,46 +95,30 @@ export default function Q7Tab() {
       <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
         <div className="card">
           <h3>Top 20 por % de influência</h3>
-          <div className="chart-wrap-tall"><Bar data={infData} options={infOpts} /></div>
+          <div className="chart-wrap-tall">
+            <Bar data={infData} options={infOpts}
+              role="img"
+              aria-label={`Top 20 deputados por percentual de influência. Maior: ${data[0].nome}, ${pct(data[0].pct_influencia)}.`} />
+          </div>
         </div>
         <div className="card">
           <h3>Taxa de aprovação (top 20)</h3>
-          <div className="chart-wrap-tall"><Bar data={aprovData} options={aprovOpts} /></div>
+          <div className="chart-wrap-tall">
+            <Bar data={aprovData} options={aprovOpts}
+              role="img"
+              aria-label={`Taxa de aprovação das proposições dos 20 deputados mais influentes. Maior: ${data[0].nome}, ${pct(data[0].taxa_aprovacao)}.`} />
+          </div>
         </div>
       </div>
 
       <div className="card">
         <h3>Ranking de influência</h3>
-        <div className="table-wrap">
-          <table>
-            <thead><tr>
-              <th>#</th><th>Deputado</th><th>Partido</th><th>UF</th>
-              <th style={{ textAlign: 'right' }}>Em pauta</th>
-              <th style={{ textAlign: 'right' }}>Aprovadas</th>
-              <th style={{ textAlign: 'right' }}>Taxa aprov.</th>
-              <th style={{ textAlign: 'right' }}>% Influência</th>
-            </tr></thead>
-            <tbody>
-              {data.map((dep, i) => (
-                <tr key={dep.nome + i}>
-                  <td><RankNum rank={i + 1} /></td>
-                  <td>
-                    <div className="td-deputy">
-                      <Avatar urlFoto={dep.urlFoto} nome={dep.nome} size="sm" />
-                      <span className="td-deputy-name">{dep.nome}</span>
-                    </div>
-                  </td>
-                  <td><Badge variant="blue">{dep.partido}</Badge></td>
-                  <td>{dep.uf}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtN(dep.em_pauta_plen)}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtN(dep.aprovadas_pelo_dep)}</td>
-                  <td style={{ textAlign: 'right' }}>{pct(dep.taxa_aprovacao)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{pct(dep.pct_influencia)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={data}
+          rowKey={(d, i) => d.nome + i}
+          search={{ placeholder: 'Buscar por nome, partido ou UF…', accessor: d => `${d.nome} ${d.partido} ${d.uf}` }}
+        />
       </div>
 
       <InfoCard>

@@ -5,12 +5,14 @@ import {
 } from 'chart.js';
 import { apiFetch } from '../../lib/api';
 import { fmt, fmtN, shortName } from '../../lib/formatters';
-import { PALETTE, hBarData, hBarOptions, baseFont, gridColor } from '../../lib/chartDefaults';
-import LoadingSpinner from '../shared/LoadingSpinner';
+import { PALETTE, hBarData, hBarOptions, baseFont, gridColor, tickColor } from '../../lib/chartDefaults';
+import TabSkeleton from '../shared/Skeleton';
 import ErrorBox from '../shared/ErrorBox';
+import EmptyState from '../shared/EmptyState';
 import Avatar from '../shared/Avatar';
 import Badge from '../shared/Badge';
 import RankNum from '../shared/RankNum';
+import DataTable from '../shared/DataTable';
 import DeputadoCard from './DeputadoCard';
 import DeputadoModal from './DeputadoModal';
 import InfoCard from '../shared/InfoCard';
@@ -24,15 +26,23 @@ export default function Q1Tab() {
   const [selectedDep, setSelectedDep] = useState(null);
 
   useEffect(() => {
-    apiFetch('/q1/gastos-deputados?limit=200')
+    apiFetch('/q1/gastos-deputados')
       .then(setData)
-      .catch(e => setError('Erro ao carregar: ' + e.message))
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <TabSkeleton />;
   if (error) return <ErrorBox message={error} />;
-  if (!data.length) return null;
+
+  if (!data.length) {
+    return (
+      <>
+        <p className="section-title">Deputados com mais gastos</p>
+        <EmptyState hint="Nenhum gasto da CEAP foi retornado para o período." />
+      </>
+    );
+  }
 
   const total = data.reduce((s, d) => s + d.total_gasto, 0);
   const top5  = data.slice(0, 5);
@@ -56,10 +66,27 @@ export default function Q1Tab() {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + fmt(c.raw) } } },
     scales: {
-      x: { grid: { display: false }, ticks: { color: '#8892a4', font: baseFont } },
-      y: { grid: { color: gridColor }, ticks: { color: '#8892a4', font: baseFont, callback: v => fmt(v) } }
+      x: { grid: { display: false }, ticks: { color: tickColor, font: baseFont } },
+      y: { grid: { color: gridColor }, ticks: { color: tickColor, font: baseFont, callback: v => fmt(v) } }
     }
   };
+
+  const columns = [
+    { key: 'rank', header: '#', render: (_, i) => <RankNum rank={i + 1} /> },
+    {
+      key: 'nome', header: 'Deputado', sortable: true, sortValue: d => d.nome,
+      render: d => (
+        <div className="td-deputy">
+          <Avatar urlFoto={d.urlFoto} nome={d.nome} size="sm" />
+          <span className="td-deputy-name">{d.nome}</span>
+        </div>
+      )
+    },
+    { key: 'partido', header: 'Partido', sortable: true, sortValue: d => d.partido, render: d => <Badge variant="blue">{d.partido}</Badge> },
+    { key: 'uf', header: 'UF', sortable: true, sortValue: d => d.uf },
+    { key: 'num_transacoes', header: 'Transações', align: 'right', sortable: true, sortValue: d => d.num_transacoes, render: d => fmtN(d.num_transacoes) },
+    { key: 'total_gasto', header: 'Total gasto', align: 'right', bold: true, sortable: true, sortValue: d => d.total_gasto, render: d => fmt(d.total_gasto) },
+  ];
 
   return (
     <>
@@ -94,42 +121,32 @@ export default function Q1Tab() {
       <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
         <div className="card">
           <h3>Top 20 por total gasto</h3>
-          <div className="chart-wrap-tall"><Bar data={barData} options={barOpts} /></div>
+          <div className="chart-wrap-tall">
+            <Bar data={barData} options={barOpts}
+              role="img"
+              aria-label={`Top 20 deputados por total gasto na CEAP. Maior: ${data[0].nome}, ${fmt(data[0].total_gasto)}.`} />
+          </div>
         </div>
         <div className="card">
           <h3>Distribuição por partido (top 50)</h3>
-          <div className="chart-wrap-tall"><Bar data={partidoData} options={partidoOpts} /></div>
+          <div className="chart-wrap-tall">
+            <Bar data={partidoData} options={partidoOpts}
+              role="img"
+              aria-label={`Gasto agregado por partido entre os 50 maiores. Maior: ${sorted[0][0]}, ${fmt(sorted[0][1])}.`} />
+          </div>
         </div>
       </div>
 
       <div className="card">
         <h3>Lista completa</h3>
-        <div className="table-wrap">
-          <table>
-            <thead><tr>
-              <th>#</th><th>Deputado</th><th>Partido</th><th>UF</th>
-              <th style={{ textAlign: 'right' }}>Transações</th>
-              <th style={{ textAlign: 'right' }}>Total gasto</th>
-            </tr></thead>
-            <tbody>
-              {data.map((dep, i) => (
-                <tr key={dep.id} className="clickable" onClick={() => setSelectedDep(dep)} title="Ver detalhes de gastos">
-                  <td><RankNum rank={i + 1} /></td>
-                  <td>
-                    <div className="td-deputy">
-                      <Avatar urlFoto={dep.urlFoto} nome={dep.nome} size="sm" />
-                      <span className="td-deputy-name">{dep.nome}</span>
-                    </div>
-                  </td>
-                  <td><Badge variant="blue">{dep.partido}</Badge></td>
-                  <td>{dep.uf}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtN(dep.num_transacoes)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(dep.total_gasto)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={data}
+          rowKey={d => d.id}
+          onRowClick={setSelectedDep}
+          rowTitle="Ver detalhes de gastos"
+          search={{ placeholder: 'Pesquise qualquer deputado por nome, partido ou UF…', accessor: d => `${d.nome} ${d.partido} ${d.uf}` }}
+        />
       </div>
 
       <InfoCard>

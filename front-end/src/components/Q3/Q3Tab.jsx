@@ -3,7 +3,7 @@ import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { apiFetch } from '../../lib/api';
 import { fmtN, pct } from '../../lib/formatters';
-import { VOTE_COLORS, baseFont } from '../../lib/chartDefaults';
+import { VOTE_COLORS, baseFont, legendColor } from '../../lib/chartDefaults';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import ErrorBox from '../shared/ErrorBox';
 import Avatar from '../shared/Avatar';
@@ -30,7 +30,7 @@ export default function Q3Tab() {
         setDeputados(d);
         if (t.length) setSelectedTema(t[0].tema);
       })
-      .catch(console.error);
+      .catch(e => setError(e.message));
   }, []);
 
   async function buscar() {
@@ -46,7 +46,7 @@ export default function Q3Tab() {
         votes: data,
       });
     } catch (e) {
-      setError('Erro: ' + e.message);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ export default function Q3Tab() {
 
   const donutOpts = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'right', labels: { color: '#e2e6f0', font: baseFont, boxWidth: 12 } } }
+    plugins: { legend: { position: 'right', labels: { color: legendColor, font: baseFont, boxWidth: 12 } } }
   };
 
   return (
@@ -102,7 +102,11 @@ export default function Q3Tab() {
           <div className="grid-2">
             <div className="card">
               <h3>Distribuição dos votos</h3>
-              <div className="chart-wrap"><Doughnut data={donutData} options={donutOpts} /></div>
+              <div className="chart-wrap">
+                <Doughnut data={donutData} options={donutOpts}
+                  role="img"
+                  aria-label={`Distribuição dos votos de ${result.nome} no tema "${selectedTema}": ${result.votes.map(d => `${d.voto} ${fmtN(d.num_votos)}`).join(', ')}.`} />
+              </div>
             </div>
             <div className="card">
               <h3>Votos por tipo</h3>

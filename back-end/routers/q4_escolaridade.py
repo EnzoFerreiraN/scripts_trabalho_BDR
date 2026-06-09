@@ -10,6 +10,7 @@ SELECT
     COUNT(*)                                    AS num_deputados,
     ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS pct
 FROM deputado
+WHERE id IN (SELECT DISTINCT idDeCadastro FROM gasto)
 GROUP BY escolaridade
 ORDER BY num_deputados DESC;
 """

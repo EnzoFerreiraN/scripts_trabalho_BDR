@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import WordCloud from 'wordcloud';
-import { PALETTE } from '../../lib/chartDefaults';
+import { PALETTE, wordcloudBg, baseFont } from '../../lib/chartDefaults';
 
 export default function WordCloudCanvas({ data }) {
   const canvasRef = useRef(null);
@@ -20,9 +20,9 @@ export default function WordCloudCanvas({ data }) {
 
     WordCloud(canvas, {
       list: wcList,
-      fontFamily: "'Segoe UI', sans-serif",
+      fontFamily: baseFont.family,
       color: () => PALETTE[Math.floor(Math.random() * PALETTE.length)],
-      backgroundColor: '#1a1d27',
+      backgroundColor: wordcloudBg,
       rotateRatio: 0,
       minSize: 8,
       weightFactor: 1,
@@ -31,9 +31,15 @@ export default function WordCloudCanvas({ data }) {
     });
   }, [data]);
 
+  const top = data.length ? [...data].sort((a, b) => b.num_proposicoes - a.num_proposicoes)[0] : null;
+
   return (
     <canvas
       ref={canvasRef}
+      role="img"
+      aria-label={top
+        ? `Nuvem de palavras dos eixos de atuação legislativa; tamanho proporcional ao nº de proposições. Maior tema: ${top.tema}.`
+        : 'Nuvem de palavras dos eixos de atuação legislativa.'}
       style={{ width: '100%', height: '360px', display: 'block' }}
     />
   );

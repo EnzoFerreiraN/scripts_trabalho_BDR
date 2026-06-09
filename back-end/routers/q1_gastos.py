@@ -4,20 +4,32 @@ from schemas import GastoDeputado, GastoDetalhe
 
 router = APIRouter()
 
+# Uma linha por deputado: total e nº de transações somam todos os partidos;
+# partido/UF vêm da transação mais recente (numAno, numMes, ideDocumento).
 SQL = """
-SELECT
-    d.nome,
-    d.id,
-    d.urlFoto,
-    g.sgPartido                           AS partido,
-    g.sgUF                                AS uf,
-    COUNT(g.ideDocumento)                 AS num_transacoes,
-    ROUND(SUM(g.vlrLiquido), 2)           AS total_gasto
-FROM deputado d
-JOIN gasto g ON g.idDeCadastro = d.id
-GROUP BY d.id, d.nome, d.urlFoto, g.sgPartido, g.sgUF
-ORDER BY total_gasto DESC
-LIMIT :limit;
+WITH agg AS (
+    SELECT idDeCadastro AS id,
+           COUNT(ideDocumento)        AS num_transacoes,
+           ROUND(SUM(vlrLiquido), 2)  AS total_gasto
+    FROM gasto
+    GROUP BY idDeCadastro
+),
+recente AS (
+    SELECT idDeCadastro AS id, sgPartido, sgUF,
+           ROW_NUMBER() OVER (
+               PARTITION BY idDeCadastro
+               ORDER BY numAno DESC, numMes DESC, ideDocumento DESC
+           ) AS rn
+    FROM gasto
+)
+SELECT d.nome, d.id, d.urlFoto,
+       r.sgPartido AS partido, r.sgUF AS uf,
+       a.num_transacoes, a.total_gasto
+FROM agg a
+JOIN deputado d ON d.id = a.id
+JOIN recente  r ON r.id = a.id AND r.rn = 1
+ORDER BY a.total_gasto DESC
+{limit_clause};
 """
 
 SQL_DETALHE = """
@@ -37,10 +49,16 @@ ORDER BY total DESC;
 
 
 @router.get("/gastos-deputados", response_model=list[GastoDeputado])
-def gastos_deputados(limit: int = Query(default=50, ge=1, le=513)):
+def gastos_deputados(limit: int | None = Query(default=None, ge=1)):
+    params: dict = {}
+    if limit is None:
+        sql = SQL.format(limit_clause="")
+    else:
+        sql = SQL.format(limit_clause="LIMIT :limit")
+        params["limit"] = limit
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(SQL, {"limit": limit})
+    cur.execute(sql, params)
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]

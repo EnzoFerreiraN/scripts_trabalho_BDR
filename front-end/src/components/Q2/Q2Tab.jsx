@@ -1,42 +1,47 @@
 import { useState, useEffect } from 'react';
-import { Bar, Bubble } from 'react-chartjs-2';
+import { Bubble } from 'react-chartjs-2';
 import {
-  Chart as ChartJS, BarElement, CategoryScale, LinearScale,
-  PointElement, BubbleController, Tooltip, Legend
+  Chart as ChartJS, LinearScale, PointElement, BubbleController, Tooltip, Legend
 } from 'chart.js';
 import { apiFetch } from '../../lib/api';
 import { fmtN } from '../../lib/formatters';
-import { PALETTE, hBarData, hBarOptions, baseFont, gridColor } from '../../lib/chartDefaults';
-import LoadingSpinner from '../shared/LoadingSpinner';
+import { PALETTE, baseFont, gridColor, tickColor } from '../../lib/chartDefaults';
+import TabSkeleton from '../shared/Skeleton';
+import ErrorBox from '../shared/ErrorBox';
+import EmptyState from '../shared/EmptyState';
 import RankNum from '../shared/RankNum';
+import DataTable from '../shared/DataTable';
 import WordCloudCanvas from './WordCloud';
 import InfoCard from '../shared/InfoCard';
 
-ChartJS.register(BarElement, CategoryScale, LinearScale, PointElement, BubbleController, Tooltip, Legend);
+ChartJS.register(LinearScale, PointElement, BubbleController, Tooltip, Legend);
 
 export default function Q2Tab() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     apiFetch('/q2/ranking-temas')
       .then(setData)
-      .catch(console.error)
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
-  if (!data.length) return null;
+  if (loading) return <TabSkeleton stats={0} />;
+  if (error) return <ErrorBox message={error} />;
 
-  const top15 = data.slice(0, 15);
-
-  const temasData = hBarData(top15.map(d => d.tema), top15.map(d => d.num_proposicoes));
-  const temasOpts = hBarOptions(fmtN);
-
-  const depsData = hBarData(top15.map(d => d.tema), top15.map(d => d.num_deputados));
-  const depsOpts = hBarOptions(fmtN);
+  if (!data.length) {
+    return (
+      <>
+        <p className="section-title">Principais eixos de atuação legislativa</p>
+        <EmptyState hint="Nenhum tema legislativo foi retornado." />
+      </>
+    );
+  }
 
   const maxProp = Math.max(...data.map(d => d.num_proposicoes));
+  const lider = data[0];
   const bubbleData = {
     datasets: data.map((d, i) => ({
       label: d.tema,
@@ -69,17 +74,24 @@ export default function Q2Tab() {
     },
     scales: {
       x: {
-        title: { display: true, text: 'Nº de deputados', color: '#8892a4', font: baseFont },
+        title: { display: true, text: 'Nº de deputados', color: tickColor, font: baseFont },
         grid: { color: gridColor },
-        ticks: { color: '#8892a4', font: baseFont },
+        ticks: { color: tickColor, font: baseFont },
       },
       y: {
-        title: { display: true, text: 'Nº de proposições', color: '#8892a4', font: baseFont },
+        title: { display: true, text: 'Nº de proposições', color: tickColor, font: baseFont },
         grid: { color: gridColor },
-        ticks: { color: '#8892a4', font: baseFont, callback: v => fmtN(v) },
+        ticks: { color: tickColor, font: baseFont, callback: v => fmtN(v) },
       }
     }
   };
+
+  const columns = [
+    { key: 'rank', header: '#', render: (_, i) => <RankNum rank={i + 1} /> },
+    { key: 'tema', header: 'Tema', sortable: true, sortValue: d => d.tema },
+    { key: 'num_proposicoes', header: 'Proposições', align: 'right', sortable: true, sortValue: d => d.num_proposicoes, render: d => fmtN(d.num_proposicoes) },
+    { key: 'num_deputados', header: 'Deputados', align: 'right', sortable: true, sortValue: d => d.num_deputados, render: d => fmtN(d.num_deputados) },
+  ];
 
   return (
     <>
@@ -92,47 +104,30 @@ export default function Q2Tab() {
       </div>
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3>Gráfico de bolhas — proposições × deputados (tamanho da bolha ∝ nº de proposições)</h3>
-        <div className="chart-wrap-tall"><Bubble data={bubbleData} options={bubbleOpts} /></div>
-      </div>
-
-      <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-        <div className="card">
-          <h3>Ranking de temas por nº de proposições</h3>
-          <div className="chart-wrap-tall"><Bar data={temasData} options={temasOpts} /></div>
-        </div>
-        <div className="card">
-          <h3>Nº de deputados por tema</h3>
-          <div className="chart-wrap-tall"><Bar data={depsData} options={depsOpts} /></div>
+        <h3>Proposições × deputados (tamanho da bolha ∝ nº de proposições)</h3>
+        <div className="chart-wrap-tall">
+          <Bubble
+            data={bubbleData}
+            options={bubbleOpts}
+            role="img"
+            aria-label={`Dispersão de proposições por deputados envolvidos, ${fmtN(data.length)} temas. Maior tema: ${lider.tema}, ${fmtN(lider.num_proposicoes)} proposições e ${fmtN(lider.num_deputados)} deputados.`}
+          />
         </div>
       </div>
 
       <div className="card">
         <h3>Tabela de temas</h3>
-        <div className="table-wrap">
-          <table>
-            <thead><tr>
-              <th>#</th><th>Tema</th>
-              <th style={{ textAlign: 'right' }}>Proposições</th>
-              <th style={{ textAlign: 'right' }}>Deputados</th>
-            </tr></thead>
-            <tbody>
-              {data.map((d, i) => (
-                <tr key={d.tema}>
-                  <td><RankNum rank={i + 1} /></td>
-                  <td>{d.tema}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtN(d.num_proposicoes)}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtN(d.num_deputados)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={data}
+          rowKey={d => d.tema}
+          search={{ placeholder: 'Buscar tema…', accessor: d => d.tema }}
+        />
       </div>
 
       <InfoCard>
         <p>Proposições legislativas (PLs, PDCs, etc.) classificadas por tema conforme o <strong>sistema de temas legislativos da Câmara dos Deputados</strong>. O número de proposições e de deputados envolvidos por tema foi apurado pelo vínculo entre as tabelas <code>autoria</code> e <code>classificacao</code>.</p>
-        <p>O <strong>tamanho das palavras</strong> na nuvem e das bolhas no gráfico de bolhas é proporcional ao número de proposições registradas no tema.</p>
+        <p>O <strong>tamanho das palavras</strong> na nuvem e das bolhas no gráfico é proporcional ao número de proposições registradas no tema.</p>
       </InfoCard>
     </>
   );

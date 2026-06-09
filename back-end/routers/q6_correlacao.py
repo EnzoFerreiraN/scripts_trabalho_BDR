@@ -43,6 +43,7 @@ WHERE d.escolaridade    IS NOT NULL
   AND o.orientacao      IS NOT NULL
   AND o.orientacao      != 'Liberado'
   AND v.voto            IS NOT NULL
+  AND d.id IN (SELECT DISTINCT idDeCadastro FROM gasto)
 GROUP BY d.escolaridade
 ORDER BY pct_fidelidade DESC;
 """
@@ -56,6 +57,7 @@ SELECT
 FROM deputado d
 LEFT JOIN autoria a ON a.idDeputadoAutor = d.id
 WHERE d.escolaridade IS NOT NULL
+  AND d.id IN (SELECT DISTINCT idDeCadastro FROM gasto)
 GROUP BY d.escolaridade
 ORDER BY media_por_deputado DESC;
 """
@@ -69,6 +71,7 @@ SELECT
 FROM deputado d
 LEFT JOIN presenca p ON p.idDeputado = d.id
 WHERE d.escolaridade IS NOT NULL
+  AND d.id IN (SELECT DISTINCT idDeCadastro FROM gasto)
 GROUP BY d.escolaridade
 ORDER BY media_por_deputado DESC;
 """
@@ -87,6 +90,7 @@ LEFT JOIN (
     WHERE e.descricaoTipo = 'Sessão Deliberativa'
 ) pp ON pp.idDeputado = d.id
 WHERE d.escolaridade IS NOT NULL
+  AND d.id IN (SELECT DISTINCT idDeCadastro FROM gasto)
 GROUP BY d.escolaridade
 ORDER BY media_por_deputado DESC;
 """
