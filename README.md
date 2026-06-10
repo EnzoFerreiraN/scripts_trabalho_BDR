@@ -124,16 +124,7 @@ Ao subir, a API executa `init_views()` (`back-end/views.py`) que cria quatro vie
 | `vw_escolaridade_norm` | Escolaridade normalizada em 5 buckets ordinais: **0** Sem informação · **1** Fundamental · **2** Médio · **3** Superior · **4** Pós-graduação. Base de todos os agrupamentos do Q4 e Q6. |
 | `vw_influencia` | Score de influência ponderado por autoria e margem de aprovação (ver Q7). Recriada a cada startup via `DROP VIEW IF EXISTS` + `CREATE VIEW` para que alterações de fórmula entrem em vigor imediatamente. As demais views usam `CREATE VIEW IF NOT EXISTS`. |
 
----
 
-## Integrantes
-
-- Antônio Enzo Ferreira do Nascimento
-- Edson da Silva Lima Junior
-- Jórdan Carvalho Araújo
-- Micaías Carvalho Vieira
-
----
 
 ## Diagrama Entidade Relacionamento
 
