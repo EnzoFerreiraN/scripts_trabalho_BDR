@@ -6,6 +6,7 @@ import Q4Tab from './components/Q4/Q4Tab';
 import Q5Tab from './components/Q5/Q5Tab';
 import Q6Tab from './components/Q6/Q6Tab';
 import Q7Tab from './components/Q7/Q7Tab';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 
 const TAB_COMPONENTS = {
   q1: Q1Tab, q2: Q2Tab, q3: Q3Tab,
@@ -138,7 +139,11 @@ export default function App() {
           const Component = TAB_COMPONENTS[tid];
           return (
             <div key={tid} style={{ display: tabId === tid ? 'block' : 'none' }}>
-              {loaded.has(tid) && <Component />}
+              {loaded.has(tid) && (
+                <ErrorBoundary>
+                  <Component />
+                </ErrorBoundary>
+              )}
             </div>
           );
         })}

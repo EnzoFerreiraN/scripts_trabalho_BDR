@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+
+import cache
 from database import get_connection
 from schemas import (
     CorrelacaoGastos,
@@ -171,31 +173,36 @@ def _query(sql: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def _cached_query(key: str, sql: str) -> list[dict]:
+    # Dados estáticos da legislatura: cache evita re-executar as CTEs pesadas.
+    return cache.get_or_compute(f"q6:{key}", lambda: _query(sql))
+
+
 @router.get("/gastos", response_model=list[CorrelacaoGastos])
 def correlacao_gastos():
-    return _query(SQL_6A)
+    return _cached_query("gastos", SQL_6A)
 
 
 @router.get("/fidelidade-partidaria", response_model=list[CorrelacaoFidelidade])
 def correlacao_fidelidade():
-    return _query(SQL_6B)
+    return _cached_query("fidelidade", SQL_6B)
 
 
 @router.get("/proposicoes", response_model=list[CorrelacaoProposicoes])
 def correlacao_proposicoes():
-    return _query(SQL_6C)
+    return _cached_query("proposicoes", SQL_6C)
 
 
 @router.get("/presenca-eventos", response_model=list[CorrelacaoPresenca])
 def correlacao_presenca_eventos():
-    return _query(SQL_6D)
+    return _cached_query("presenca-eventos", SQL_6D)
 
 
 @router.get("/presenca-plenario", response_model=list[CorrelacaoPresencaPlenario])
 def correlacao_presenca_plenario():
-    return _query(SQL_6E)
+    return _cached_query("presenca-plenario", SQL_6E)
 
 
 @router.get("/dados-deputado", response_model=list[DadosDeputadoCorrelacao])
 def dados_deputado():
-    return _query(SQL_DADOS_DEPUTADO)
+    return _cached_query("dados-deputado", SQL_DADOS_DEPUTADO)

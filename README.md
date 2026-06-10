@@ -9,6 +9,8 @@ projeto final/
 │   ├── database.py
 │   ├── schemas.py
 │   ├── views.py     # SQL Views criadas no startup (vw_deputado_atual, vw_gasto_deputado, vw_escolaridade_norm, vw_influencia)
+│   ├── cache.py     # Cache TTL em memória para queries pesadas
+│   ├── stopwords_pt.py  # Stopwords PT-BR da nuvem de palavras das ementas
 │   └── routers/     # q1_gastos … q7_influencia
 ├── front-end/       # Dashboard — React + Vite
 │   ├── src/
@@ -30,7 +32,7 @@ O back-end serve **exclusivamente** a API REST (porta 8000). O front-end é um p
 
 - Python 3.10+
 - Node.js 18+
-- O banco de dados `camara-2023-2026.db` na raiz do projeto (gerado via `etl.py`)
+- O banco de dados `camara-2023-2026.db` na raiz do projeto (ver [Gerando o banco do zero](#gerando-o-banco-do-zero))
 
 ### 1. Instalar dependências
 
@@ -77,6 +79,37 @@ cd front-end
 npm run build
 # Os arquivos estáticos ficam em front-end/dist/
 ```
+
+---
+
+## Gerando o banco do zero
+
+O banco `camara-2023-2026.db` (~810 MB) **não é versionado** no Git. Para gerá-lo a partir dos dados abertos da Câmara:
+
+### 1. Baixar os CSVs de votações/proposições
+
+```bash
+python baixar_csvs.py
+```
+
+Baixa de `dadosabertos.camara.leg.br` os 8 conjuntos anuais (2023–2026) para subpastas de `dados/`: `votacoes`, `proposicoes`, `proposicoesTemas`, `votacoesOrientacoes`, `eventosPresencaDeputados`, `votacoesVotos`, `votacoesProposicoes` e `proposicoesAutores`. Arquivos já baixados são pulados (idempotente). Requer internet; pode levar vários minutos.
+
+### 2. Colocar manualmente os CSVs que o script não baixa
+
+- **`dados/deputados.csv`** — cadastro de deputados: [dadosabertos.camara.leg.br/arquivos/deputados/csv/deputados.csv](https://dadosabertos.camara.leg.br/arquivos/deputados/csv/deputados.csv)
+- **`dados/gastos/Ano-2023.csv` … `Ano-2026.csv`** — despesas CEAP (Cota Parlamentar), disponíveis em [camara.leg.br/cota-parlamentar](https://www.camara.leg.br/cota-parlamentar/) (arquivos `Ano-XXXX.csv.zip`, descompactar na pasta `dados/gastos/`)
+
+### 3. Rodar o ETL
+
+```bash
+python etl-2023-2026.py
+```
+
+Aplica o `schema.sql` (13 tabelas + 12 índices) e carrega todos os CSVs no banco via `INSERT OR IGNORE` — o script é **idempotente** e pode ser re-executado para completar cargas parciais. Ao final imprime a contagem de linhas por tabela e grava o log em `etl_log.txt`.
+
+> `etl.py` é uma versão anterior do mesmo script; use `etl-2023-2026.py`. O script opcional `update_foto_deputados.py` atualiza as URLs de foto dos deputados consultando a API da Câmara.
+
+As 4 views SQL (`vw_deputado_atual`, `vw_gasto_deputado`, `vw_escolaridade_norm`, `vw_influencia`) **não** fazem parte do ETL — são criadas automaticamente pelo back-end no startup (`init_views()`).
 
 ---
 
@@ -623,6 +656,21 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
 
 Toda a lógica analítica está implementada como endpoints FastAPI em `back-end/routers/`. A API sobe na porta **8000**; o Vite faz proxy automático de `/q1` … `/q7` para ela. Documentação interativa completa em **http://localhost:8000/docs**.
 
+### Erros HTTP
+
+| Código | Quando ocorre |
+|---|---|
+| `200 OK` | Sucesso. |
+| `404 Not Found` | Rota inexistente, ou `/q3/votos` sem resultado para o deputado/tema informado. |
+| `422 Unprocessable Entity` | Parâmetro inválido (tipo errado ou `limit` fora do intervalo permitido) — validado pelo FastAPI/Pydantic. |
+| `500 Internal Server Error` | Erro não tratado. O handler global (`main.py`) retorna JSON `{"detail": "Erro interno do servidor.", "path": "..."}` e registra o traceback no log do servidor. |
+
+### Paginação e cache
+
+- A API usa apenas `limit` (sem `offset`/cursor) — os endpoints retornam os *top N* de cada ranking, suficiente para o dashboard.
+- Resultados de queries pesadas (Q2 ranking/palavras, Q6) são cacheados em memória no servidor (`back-end/cache.py`, TTL 1h); o front também cacheia respostas por 5 min (`front-end/src/lib/api.js`).
+- CORS é restrito a `http://localhost:5173` por padrão; outras origens via env var `CORS_ORIGINS` (lista separada por vírgula).
+
 ---
 
 ### Q1 — `/q1` — Gastos dos Deputados
@@ -647,11 +695,18 @@ Toda a lógica analítica está implementada como endpoints FastAPI em `back-end
 | `GET` | `/q2/ranking-temas` | Ranking de temas por nº de proposições distintas. Inclui `codTema` para identificação. |
 | `GET` | `/q2/tema-por-deputado?limit=` | Tema dominante de cada deputado (o com mais proposições de autoria). |
 | `GET` | `/q2/deputados-por-tema?cod_tema=&limit=` | **Drill-down:** top deputados por nº de proposições no tema `cod_tema`. Alimenta o modal que abre ao clicar numa bolha ou palavra na nuvem. |
+| `GET` | `/q2/palavras-ementas?limit=` | Top N palavras mais frequentes no **texto das ementas** das proposições (padrão 120, máx. 500). Alimenta a nuvem de palavras clássica. |
 
 **Método de cálculo:**
 - `ranking-temas`: `COUNT(DISTINCT a.idProposicao)` agrupado por `tema`, juntando `tema → classificacao → autoria`.
 - `tema-por-deputado`: CTE com `ROW_NUMBER() OVER (PARTITION BY d.id ORDER BY COUNT(*) DESC)` — seleciona o tema com mais proposições de autoria de cada deputado.
 - `deputados-por-tema`: `COUNT(DISTINCT a.idProposicao)` por deputado filtrando `c.codTema = :cod_tema`; `LEFT JOIN vw_gasto_deputado` para partido/UF.
+- `palavras-ementas`: pipeline de análise textual em Python (`routers/q2_eixo_atuacao.py`): lê todas as `proposicao.ementa` não nulas → minúsculas → tokeniza por regex (sequências de letras com acentos, 3+ caracteres, descartando números e pontuação) → remove ~250 stopwords PT-BR + jargão legislativo (`stopwords_pt.py`: "dispõe", "providências", "altera"…) → conta frequências com `collections.Counter`. O resultado completo (top 500) fica **cacheado em memória** (`cache.py`) — a primeira chamada percorre todo o corpus e pode levar alguns segundos; as seguintes são imediatas.
+
+**As duas nuvens do dashboard:**
+- *Nuvem de temas* (`ranking-temas`): nuvem de **tags** — rótulos temáticos oficiais da Câmara, com tamanho ∝ nº de proposições.
+- *Nuvem de palavras das ementas* (`palavras-ementas`): nuvem de palavras **clássica** — palavras extraídas do texto, com tamanho ∝ frequência no corpus.
+- Em ambas o front aplica escala **raiz quadrada** ao tamanho da fonte (o olho percebe área ≈ fonte², não altura), cores determinísticas por palavra e tooltip com o valor exato.
 
 ---
 

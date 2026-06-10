@@ -1,8 +1,21 @@
+import re
+from collections import Counter
+
 from fastapi import APIRouter, Query
+
+import cache
 from database import get_connection
-from schemas import RankingTema, TemaDeputado, DeputadoPorTema
+from schemas import RankingTema, TemaDeputado, DeputadoPorTema, PalavraEmenta
+from stopwords_pt import STOPWORDS
 
 router = APIRouter()
+
+# Palavras = sequências de letras (com acentos) de 3+ caracteres.
+# Descarta números, pontuação e siglas de 1-2 letras.
+TOKEN_RE = re.compile(r"[a-záàâãéêíóôõúüç]{3,}")
+
+# Quantos termos manter no cache (o endpoint fatia via ?limit=).
+MAX_PALAVRAS = 500
 
 SQL_RANKING_TEMAS = """
 SELECT
@@ -59,14 +72,44 @@ LIMIT :limit;
 """
 
 
-@router.get("/ranking-temas", response_model=list[RankingTema])
-def ranking_temas():
+def _compute_ranking_temas() -> list[dict]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(SQL_RANKING_TEMAS)
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def _compute_palavras_ementas() -> list[dict]:
+    """Nuvem de palavras clássica: tokeniza as ementas das proposições,
+    remove stopwords PT-BR e conta a frequência de cada palavra."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT ementa FROM proposicao WHERE ementa IS NOT NULL AND ementa != ''")
+    counter = Counter()
+    for (ementa,) in cur:
+        tokens = TOKEN_RE.findall(ementa.lower())
+        counter.update(t for t in tokens if t not in STOPWORDS)
+    conn.close()
+    return [
+        {"palavra": palavra, "frequencia": freq}
+        for palavra, freq in counter.most_common(MAX_PALAVRAS)
+    ]
+
+
+@router.get("/ranking-temas", response_model=list[RankingTema])
+def ranking_temas():
+    return cache.get_or_compute("q2:ranking-temas", _compute_ranking_temas)
+
+
+@router.get("/palavras-ementas", response_model=list[PalavraEmenta])
+def palavras_ementas(limit: int = Query(default=120, ge=10, le=MAX_PALAVRAS)):
+    """Top N palavras mais frequentes nas ementas das proposições
+    (tokenização + remoção de stopwords). Resultado cacheado em memória —
+    a primeira chamada percorre todas as ementas e pode levar alguns segundos."""
+    palavras = cache.get_or_compute("q2:palavras-ementas", _compute_palavras_ementas)
+    return palavras[:limit]
 
 
 @router.get("/tema-por-deputado", response_model=list[TemaDeputado])

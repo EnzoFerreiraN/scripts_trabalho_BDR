@@ -1,4 +1,12 @@
+// Cache em memória por path (TTL 5min): os dados da legislatura são
+// estáticos, então trocar de aba e voltar não precisa refazer o fetch.
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const cache = new Map(); // path -> { ts, data }
+
 export async function apiFetch(path) {
+  const hit = cache.get(path);
+  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.data;
+
   let r;
   try {
     r = await fetch(path);
@@ -10,5 +18,7 @@ export async function apiFetch(path) {
   if (!r.ok) {
     throw new Error(`O servidor respondeu com erro (HTTP ${r.status}). Tente novamente em instantes.`);
   }
-  return r.json();
+  const data = await r.json();
+  cache.set(path, { ts: Date.now(), data });
+  return data;
 }

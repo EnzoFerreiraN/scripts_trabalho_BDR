@@ -6,7 +6,7 @@ export default function Avatar({ urlFoto, nome, size = 'sm' }) {
   return (
     <div className={`avatar avatar-${size}`}>
       {urlFoto && !imgError
-        ? <img src={urlFoto} alt={nome} onError={() => setImgError(true)} />
+        ? <img src={urlFoto} alt={nome} loading="lazy" onError={() => setImgError(true)} />
         : <span>{initials(nome)}</span>
       }
     </div>

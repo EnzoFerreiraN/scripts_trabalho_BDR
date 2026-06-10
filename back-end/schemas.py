@@ -28,6 +28,11 @@ class TemaDeputado(BaseModel):
     num_proposicoes: int
 
 
+class PalavraEmenta(BaseModel):
+    palavra: str
+    frequencia: int
+
+
 class DeputadoPorTema(BaseModel):
     id: int
     nome: str
