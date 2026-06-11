@@ -17,12 +17,18 @@ ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Le
 
 export default function Q4Tab() {
   const [data, setData] = useState([]);
+  const [dataBruta, setDataBruta] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // 'consolidado' = 5 níveis ordinais (padrão) | 'detalhado' = valores brutos
+  const [view, setView] = useState('consolidado');
 
   useEffect(() => {
-    apiFetch('/q4/escolaridade')
-      .then(setData)
+    Promise.all([
+      apiFetch('/q4/escolaridade'),
+      apiFetch('/q4/escolaridade-bruta'),
+    ])
+      .then(([cons, bruta]) => { setData(cons); setDataBruta(bruta); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -30,7 +36,9 @@ export default function Q4Tab() {
   if (loading) return <TabSkeleton stats={0} />;
   if (error) return <ErrorBox message={error} />;
 
-  if (!data.length) {
+  const activeData = view === 'consolidado' ? data : dataBruta;
+
+  if (!activeData.length) {
     return (
       <>
         <p className="section-title">Escolaridade dos deputados</p>
@@ -39,9 +47,9 @@ export default function Q4Tab() {
     );
   }
 
-  const labels = data.map(d => d.escolaridade);
-  const vals   = data.map(d => d.num_deputados);
-  const colors = data.map((_, i) => PALETTE[i % PALETTE.length]);
+  const labels = activeData.map(d => d.escolaridade);
+  const vals   = activeData.map(d => d.num_deputados);
+  const colors = activeData.map((_, i) => PALETTE[i % PALETTE.length]);
 
   const pieData = { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }] };
   const pieOpts = {
@@ -65,10 +73,41 @@ export default function Q4Tab() {
     { key: 'pct', header: '%', align: 'right', sortable: true, sortValue: d => d.pct, render: d => pct(d.pct) },
   ];
 
+  const isDetalhado = view === 'detalhado';
+
   return (
     <>
       <p className="section-title">Escolaridade dos deputados</p>
-      <p className="section-subtitle">Distribuição por nível de escolaridade declarado · Legislatura 2023–2026</p>
+      <p className="section-subtitle">
+        {isDetalhado
+          ? 'Valores brutos declarados (sem consolidação em níveis) · Legislatura 2023–2026'
+          : 'Distribuição por nível de escolaridade declarado · Legislatura 2023–2026'}
+      </p>
+
+      {/* Toggle Consolidado / Detalhado */}
+      <div
+        className="sub-nav"
+        role="tablist"
+        aria-label="Modo de visualização da escolaridade"
+        style={{ marginBottom: '1.5rem' }}
+      >
+        <button
+          role="tab"
+          className={view === 'consolidado' ? 'active' : ''}
+          aria-selected={view === 'consolidado'}
+          onClick={() => setView('consolidado')}
+        >
+          Consolidado
+        </button>
+        <button
+          role="tab"
+          className={view === 'detalhado' ? 'active' : ''}
+          aria-selected={view === 'detalhado'}
+          onClick={() => setView('detalhado')}
+        >
+          Detalhado
+        </button>
+      </div>
 
       <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
         <div className="card">
@@ -76,37 +115,46 @@ export default function Q4Tab() {
           <div className="chart-wrap">
             <Doughnut data={pieData} options={pieOpts}
               role="img"
-              aria-label={`Distribuição dos deputados por escolaridade declarada: ${data.map(d => `${d.escolaridade} ${fmtN(d.num_deputados)}`).join(', ')}.`} />
+              aria-label={`Distribuição dos deputados por escolaridade declarada: ${activeData.map(d => `${d.escolaridade} ${fmtN(d.num_deputados)}`).join(', ')}.`} />
           </div>
         </div>
         <div className="card">
-          <h3>Deputados por nível</h3>
+          <h3>{isDetalhado ? 'Deputados por categoria declarada' : 'Deputados por nível'}</h3>
           <div className="chart-wrap">
             <Bar data={barData} options={barOpts}
               role="img"
-              aria-label={`Número de deputados por nível de escolaridade. Maior grupo: ${data.reduce((m, d) => d.num_deputados > m.num_deputados ? d : m, data[0]).escolaridade}.`} />
+              aria-label={`Número de deputados por ${isDetalhado ? 'categoria declarada' : 'nível de escolaridade'}. Maior grupo: ${activeData.reduce((m, d) => d.num_deputados > m.num_deputados ? d : m, activeData[0]).escolaridade}.`} />
           </div>
         </div>
       </div>
 
       <div className="card">
         <h3>Tabela de escolaridade</h3>
-        <DataTable columns={columns} rows={data} rowKey={d => d.escolaridade} />
+        <DataTable columns={columns} rows={activeData} rowKey={d => d.escolaridade} />
       </div>
 
       <InfoCard>
-        <p>Escolaridade <strong>declarada pelo próprio parlamentar</strong> no cadastro oficial da Câmara dos Deputados. Os dados refletem as informações prestadas no momento do registro.</p>
-        <p><strong>Atenção:</strong> não há verificação independente da escolaridade informada — o dado é autorreferido.</p>
-        <p>Os 17 valores brutos do sistema foram <strong>consolidados em 5 níveis ordinais</strong> pelo critério do maior nível <em>concluído</em> — cursos incompletos contam como o nível anterior. Veja o agrupamento:</p>
-        <ul>
-          <li><strong>Sem informação</strong> — cadastro sem escolaridade registrada</li>
-          <li><strong>Fundamental</strong> — <code>Primário</code> · <code>Primário Incompleto</code> · <code>Ginasial</code> · <code>Ensino Fundamental</code> · <code>Ensino Fundamental Incompleto</code></li>
-          <li><strong>Médio</strong> — <code>Secundário</code> · <code>Secundário Incompleto</code> · <code>Ensino Médio</code> · <code>Ensino Médio Incompleto</code> · <code>Ensino Técnico</code> · <code>Superior Incompleto</code></li>
-          <li><strong>Superior</strong> — <code>Superior</code> · <code>Mestrado Incompleto</code> · <code>Doutorado Incompleto</code></li>
-          <li><strong>Pós-graduação</strong> — <code>Pós-Graduação</code> · <code>Mestrado</code> · <code>Doutorado</code></li>
-        </ul>
-        <p><strong>Fórmula do percentual na tabela:</strong> <code>% = 100 × num_deputados_no_nível / total_de_deputados</code>.</p>
-        <p><strong>Nota:</strong> o nível "Sem informação" <strong>está incluído</strong> nesta contagem geral. Na análise de correlação com comportamento parlamentar (aba Q6), ele é <strong>excluído</strong> para não distorcer as médias de grupo.</p>
+        {isDetalhado ? (
+          <>
+            <p>Este gráfico exibe os <strong>valores originais declarados</strong> pelo parlamentar no cadastro da Câmara, sem qualquer agrupamento. São as ~15 categorias brutas que o modo <em>Consolidado</em> agrupa nos 5 níveis ordinais.</p>
+            <p>Alterne para <strong>Consolidado</strong> para ver a visão agrupada (usada nos cálculos de correlação da aba Correlações).</p>
+          </>
+        ) : (
+          <>
+            <p>Escolaridade <strong>declarada pelo próprio parlamentar</strong> no cadastro oficial da Câmara dos Deputados. Os dados refletem as informações prestadas no momento do registro.</p>
+            <p><strong>Atenção:</strong> não há verificação independente da escolaridade informada — o dado é autorreferido.</p>
+            <p>Os 17 valores brutos do sistema foram <strong>consolidados em 5 níveis ordinais</strong> pelo critério do maior nível <em>concluído</em> — cursos incompletos contam como o nível anterior. Veja o agrupamento:</p>
+            <ul>
+              <li><strong>Sem informação</strong> — cadastro sem escolaridade registrada</li>
+              <li><strong>Fundamental</strong> — <code>Primário</code> · <code>Primário Incompleto</code> · <code>Ginasial</code> · <code>Ensino Fundamental</code> · <code>Ensino Fundamental Incompleto</code></li>
+              <li><strong>Médio</strong> — <code>Secundário</code> · <code>Secundário Incompleto</code> · <code>Ensino Médio</code> · <code>Ensino Médio Incompleto</code> · <code>Ensino Técnico</code> · <code>Superior Incompleto</code></li>
+              <li><strong>Superior</strong> — <code>Superior</code> · <code>Mestrado Incompleto</code> · <code>Doutorado Incompleto</code></li>
+              <li><strong>Pós-graduação</strong> — <code>Pós-Graduação</code> · <code>Mestrado</code> · <code>Doutorado</code></li>
+            </ul>
+            <p><strong>Fórmula do percentual na tabela:</strong> <code>% = 100 × num_deputados_no_nível / total_de_deputados</code>.</p>
+            <p><strong>Nota:</strong> o nível "Sem informação" <strong>está incluído</strong> nesta contagem geral. Na análise de correlação com comportamento parlamentar (aba Q6), ele é <strong>excluído</strong> para não distorcer as médias de grupo.</p>
+          </>
+        )}
       </InfoCard>
     </>
   );
