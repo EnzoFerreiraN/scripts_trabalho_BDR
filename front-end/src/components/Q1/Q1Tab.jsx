@@ -23,29 +23,74 @@ ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 export default function Q1Tab() {
   const [data, setData] = useState([]);
   const [deputados, setDeputados] = useState([]);
+  const [filtros, setFiltros] = useState({ partidos: [], anos: [] });
+  const [partido, setPartido] = useState('');
+  const [ano, setAno] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refetching, setRefetching] = useState(false);
   const [error, setError] = useState(null);
   const [selectedDep, setSelectedDep] = useState(null);
   const [searchDep, setSearchDep] = useState(null);
 
+  // Carregamento inicial: ranking sem filtro + deputados para autocomplete + opções de filtro.
   useEffect(() => {
     Promise.all([
       apiFetch('/q1/gastos-deputados?limit=100'),
       apiFetch('/q1/deputados'),
+      apiFetch('/q1/filtros'),
     ])
-      .then(([rank, deps]) => { setData(rank); setDeputados(deps); })
+      .then(([rank, deps, f]) => { setData(rank); setDeputados(deps); setFiltros(f); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
+  // Re-fetch automático ao trocar partido ou ano (ignora na carga inicial enquanto loading=true).
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams({ limit: '100' });
+    if (partido) params.set('partido', partido);
+    if (ano) params.set('ano', ano);
+    setRefetching(true);
+    apiFetch(`/q1/gastos-deputados?${params.toString()}`)
+      .then(setData)
+      .catch(e => setError(e.message))
+      .finally(() => setRefetching(false));
+  }, [partido, ano]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading) return <TabSkeleton />;
-  if (error) return <ErrorBox message={error} />;
+  if (error && !data.length) return <ErrorBox message={error} />;
+
+  // Bloco de filtros (renderizado mesmo sem dados para permitir trocar a seleção).
+  const filterControls = (
+    <div className="controls-section">
+      <p className="controls-label">Filtrar resultados</p>
+      <div className="controls">
+        <div>
+          <label>Partido</label>
+          <select value={partido} onChange={e => setPartido(e.target.value)} disabled={refetching}>
+            <option value="">Todos os partidos</option>
+            {filtros.partidos.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <div>
+          <label>Ano</label>
+          <select value={ano} onChange={e => setAno(e.target.value)} disabled={refetching}>
+            <option value="">Todos os anos</option>
+            {filtros.anos.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        {refetching && <span style={{ alignSelf: 'flex-end', color: 'var(--muted)', fontSize: '0.85rem' }}>Carregando…</span>}
+      </div>
+    </div>
+  );
 
   if (!data.length) {
     return (
       <>
         <p className="section-title">Deputados com mais gastos</p>
-        <EmptyState hint="Nenhum gasto da CEAP foi retornado para o período." />
+        <p className="section-subtitle">Gastos da CEAP por parlamentar · Período 2023–2026</p>
+        {filterControls}
+        <EmptyState hint="Nenhum gasto da CEAP foi retornado para o filtro selecionado." />
       </>
     );
   }
@@ -99,6 +144,8 @@ export default function Q1Tab() {
       <p className="section-title">Deputados com mais gastos</p>
       <p className="section-subtitle">Gastos da CEAP por parlamentar · Período 2023–2026</p>
 
+      {filterControls}
+
       <div className="controls-section">
         <p className="controls-label">Consultar qualquer deputado</p>
         <div className="controls">
@@ -130,11 +177,11 @@ export default function Q1Tab() {
         </div>
         <div className="stat">
           <div className="val">{fmt(total)}</div>
-          <div className="lbl">Total gasto (top 100)</div>
+          <div className="lbl">Total gasto{partido || ano ? '' : ' (top 100)'}</div>
         </div>
         <div className="stat">
           <div className="val">{fmt(total / data.length)}</div>
-          <div className="lbl">Média por deputado (top 100)</div>
+          <div className="lbl">Média por deputado{partido || ano ? '' : ' (top 100)'}</div>
         </div>
         <div className="stat">
           <div className="val">{fmt(data[0].total_gasto)}</div>

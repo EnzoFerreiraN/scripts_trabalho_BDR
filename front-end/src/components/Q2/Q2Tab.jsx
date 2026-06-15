@@ -23,7 +23,10 @@ const temaTooltip = t =>
 
 export default function Q2Tab() {
   const [data, setData]               = useState([]);
+  const [partidos, setPartidos]       = useState([]);
+  const [partido, setPartido]         = useState('');
   const [loading, setLoading]         = useState(true);
+  const [refetching, setRefetching]   = useState(false);
   const [error, setError]             = useState(null);
   const [selectedTema, setSelectedTema] = useState(null);
   const [cloudMode, setCloudMode]     = useState('temas'); // 'temas' | 'ementas'
@@ -34,12 +37,29 @@ export default function Q2Tab() {
     [data]
   );
 
+  // Carregamento inicial: ranking de temas + lista de partidos para o dropdown.
   useEffect(() => {
-    apiFetch('/q2/ranking-temas')
-      .then(setData)
+    Promise.all([
+      apiFetch('/q2/ranking-temas'),
+      apiFetch('/q2/partidos'),
+    ])
+      .then(([temas, ps]) => { setData(temas); setPartidos(ps); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  // Re-fetch automático do ranking ao trocar o partido selecionado.
+  useEffect(() => {
+    if (loading) return;
+    const url = partido
+      ? `/q2/ranking-temas?partido=${encodeURIComponent(partido)}`
+      : '/q2/ranking-temas';
+    setRefetching(true);
+    apiFetch(url)
+      .then(setData)
+      .catch(e => setError(e.message))
+      .finally(() => setRefetching(false));
+  }, [partido]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <TabSkeleton stats={0} />;
   if (error)   return <ErrorBox message={error} />;
@@ -130,23 +150,38 @@ export default function Q2Tab() {
               ? 'Nuvem de temas — eixos de atuação (tamanho ∝ nº de proposições)'
               : 'Nuvem de palavras — texto das ementas (tamanho ∝ frequência da palavra)'}
           </h3>
-          <div className="sub-nav" role="tablist" aria-label="Tipo de nuvem" style={{ margin: 0 }}>
-            <button
-              role="tab"
-              className={cloudMode === 'temas' ? 'active' : ''}
-              aria-selected={cloudMode === 'temas'}
-              onClick={() => setCloudMode('temas')}
-            >
-              Temas
-            </button>
-            <button
-              role="tab"
-              className={cloudMode === 'ementas' ? 'active' : ''}
-              aria-selected={cloudMode === 'ementas'}
-              onClick={() => setCloudMode('ementas')}
-            >
-              Palavras das ementas
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: 'var(--muted)', marginRight: '0.4rem' }}>Partido</label>
+              <select
+                value={partido}
+                onChange={e => setPartido(e.target.value)}
+                disabled={refetching}
+                style={{ fontSize: '0.85rem' }}
+              >
+                <option value="">Todos</option>
+                {partidos.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              {refetching && <span style={{ marginLeft: '0.5rem', color: 'var(--muted)', fontSize: '0.8rem' }}>…</span>}
+            </div>
+            <div className="sub-nav" role="tablist" aria-label="Tipo de nuvem" style={{ margin: 0 }}>
+              <button
+                role="tab"
+                className={cloudMode === 'temas' ? 'active' : ''}
+                aria-selected={cloudMode === 'temas'}
+                onClick={() => setCloudMode('temas')}
+              >
+                Temas
+              </button>
+              <button
+                role="tab"
+                className={cloudMode === 'ementas' ? 'active' : ''}
+                aria-selected={cloudMode === 'ementas'}
+                onClick={() => setCloudMode('ementas')}
+              >
+                Palavras das ementas
+              </button>
+            </div>
           </div>
         </div>
         {cloudMode === 'temas' ? (
@@ -166,7 +201,7 @@ export default function Q2Tab() {
             <p style={{ fontSize: '0.78rem', color: 'var(--muted)', margin: '0.35rem 0 0.5rem' }}>
               Palavras mais frequentes extraídas do texto das ementas das proposições (após remoção de stopwords)
             </p>
-            <WordCloudEmentas />
+            <WordCloudEmentas partido={partido} />
           </>
         )}
       </div>
