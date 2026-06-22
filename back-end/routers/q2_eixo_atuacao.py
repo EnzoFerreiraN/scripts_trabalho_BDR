@@ -27,16 +27,16 @@ FROM tema t
 JOIN classificacao c ON c.codTema         = t.codTema
 JOIN autoria a       ON a.idProposicao    = c.idProposicao
 WHERE a.idDeputadoAutor IS NOT NULL
-  AND (:partido IS NULL OR a.siglaPartidoAutor = :partido)
+  AND (:partido IS NULL OR RTRIM(a.siglaPartidoAutor, '*') = :partido)
 GROUP BY t.codTema, t.tema
 ORDER BY num_proposicoes DESC;
 """
 
 SQL_PARTIDOS = """
-SELECT DISTINCT siglaPartidoAutor AS partido
+SELECT DISTINCT RTRIM(siglaPartidoAutor, '*') AS partido
 FROM autoria
 WHERE siglaPartidoAutor IS NOT NULL AND siglaPartidoAutor != ''
-ORDER BY siglaPartidoAutor;
+ORDER BY RTRIM(siglaPartidoAutor, '*');
 """
 
 SQL_DEPUTADOS_POR_TEMA = """
@@ -53,6 +53,7 @@ JOIN classificacao c ON c.idProposicao    = a.idProposicao
 LEFT JOIN vw_gasto_deputado g ON g.id = d.id
 WHERE c.codTema = :cod_tema
   AND a.idDeputadoAutor IS NOT NULL
+  AND (:partido IS NULL OR RTRIM(a.siglaPartidoAutor, '*') = :partido)
 GROUP BY d.id, d.nome
 ORDER BY num_proposicoes DESC
 LIMIT :limit;
@@ -103,7 +104,7 @@ def _compute_palavras_ementas(partido: str | None) -> list[dict]:
             FROM proposicao p
             JOIN autoria a ON a.idProposicao = p.id
             WHERE p.ementa IS NOT NULL AND p.ementa != ''
-              AND a.siglaPartidoAutor = :partido
+              AND RTRIM(a.siglaPartidoAutor, '*') = :partido
             """,
             {"partido": partido},
         )
@@ -168,10 +169,11 @@ def tema_por_deputado(limit: int = Query(default=50, ge=1, le=513)):
 def deputados_por_tema(
     cod_tema: int = Query(..., description="Código do tema legislativo"),
     limit: int = Query(default=15, ge=1, le=100),
+    partido: str | None = Query(default=None, description="Sigla do partido para filtrar (opcional)"),
 ):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(SQL_DEPUTADOS_POR_TEMA, {"cod_tema": cod_tema, "limit": limit})
+    cur.execute(SQL_DEPUTADOS_POR_TEMA, {"cod_tema": cod_tema, "limit": limit, "partido": partido})
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]

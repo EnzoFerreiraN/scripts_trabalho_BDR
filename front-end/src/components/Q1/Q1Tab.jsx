@@ -44,9 +44,8 @@ export default function Q1Tab() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Re-fetch automático ao trocar partido ou ano (ignora na carga inicial enquanto loading=true).
-  useEffect(() => {
-    if (loading) return;
+  // Aplica os filtros selecionados — chamada explicitamente pelo botão "Aplicar filtro".
+  function aplicarFiltro() {
     const params = new URLSearchParams({ limit: '100' });
     if (partido) params.set('partido', partido);
     if (ano) params.set('ano', ano);
@@ -55,7 +54,7 @@ export default function Q1Tab() {
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setRefetching(false));
-  }, [partido, ano]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   if (loading) return <TabSkeleton />;
   if (error && !data.length) return <ErrorBox message={error} />;
@@ -79,7 +78,26 @@ export default function Q1Tab() {
             {filtros.anos.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
-        {refetching && <span style={{ alignSelf: 'flex-end', color: 'var(--muted)', fontSize: '0.85rem' }}>Carregando…</span>}
+        <div style={{ alignSelf: 'flex-end' }}>
+          <button
+            onClick={aplicarFiltro}
+            disabled={refetching}
+            style={{
+              padding: '0.45rem 1.1rem',
+              background: 'var(--accent, #2563eb)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '0.88rem',
+              fontWeight: 600,
+              cursor: refetching ? 'not-allowed' : 'pointer',
+              opacity: refetching ? 0.6 : 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {refetching ? 'Carregando…' : 'Aplicar filtro'}
+          </button>
+        </div>
       </div>
     </div>
   );

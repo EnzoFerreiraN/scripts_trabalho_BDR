@@ -17,6 +17,7 @@ WITH agg AS (
            COUNT(ideDocumento)        AS num_transacoes,
            ROUND(SUM(vlrLiquido), 2)  AS total_gasto
     FROM gasto
+    WHERE vlrLiquido > 0
     GROUP BY idDeCadastro
 ),
 recente AS (
@@ -26,6 +27,7 @@ recente AS (
                ORDER BY numAno DESC, numMes DESC, ideDocumento DESC
            ) AS rn
     FROM gasto
+    WHERE vlrLiquido > 0
 )
 SELECT a.id, r.sgPartido AS partido, r.sgUF AS uf, a.num_transacoes, a.total_gasto
 FROM agg a
@@ -123,6 +125,7 @@ dep_partido AS (
 total AS (SELECT COUNT(*) AS total_aprovadas FROM plen_aprovadas),
 scored AS (
     SELECT
+        d.id,
         d.nome,
         d.urlFoto,
         COALESCE(pp.partido, '?')                              AS partido,
@@ -141,7 +144,7 @@ scored AS (
     WHERE COALESCE(ds.aprovadas_pelo_dep, 0) > 0
 )
 SELECT
-    nome, urlFoto, partido, uf,
+    id, nome, urlFoto, partido, uf,
     em_pauta_plen, aprovadas_pelo_dep, taxa_aprovacao, total_aprovadas,
     score_ponderado,
     ROUND(
@@ -158,11 +161,12 @@ FROM scored;
 
 def init_views(conn) -> None:
     """Create all views at API startup.
-    vw_influencia is dropped first so formula changes always take effect.
-    The other three views use IF NOT EXISTS and are only created on first run.
+    vw_influencia and vw_gasto_deputado are dropped first so definition changes
+    always take effect. The remaining views use IF NOT EXISTS.
     """
     cur = conn.cursor()
     cur.execute("DROP VIEW IF EXISTS vw_influencia")
+    cur.execute("DROP VIEW IF EXISTS vw_gasto_deputado")
     for ddl in DDL_VIEWS:
         cur.execute(ddl)
     conn.commit()

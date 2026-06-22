@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from database import get_connection
 from views import init_views
-from routers import q1_gastos, q2_eixo_atuacao, q3_votacao_tema, q4_escolaridade, q5_fornecedores, q6_correlacao, q7_influencia
+from routers import q1_gastos, q2_eixo_atuacao, q3_votacao_tema, q4_escolaridade, q5_fornecedores, q6_correlacao, q7_influencia, q8_deputado
 
 logging.basicConfig(
     level=logging.INFO,
@@ -66,3 +66,4 @@ app.include_router(q4_escolaridade.router, prefix="/q4", tags=["Q4 - Escolaridad
 app.include_router(q5_fornecedores.router, prefix="/q5", tags=["Q5 - Fornecedores"])
 app.include_router(q6_correlacao.router,   prefix="/q6", tags=["Q6 - Correlação Escolaridade"])
 app.include_router(q7_influencia.router,   prefix="/q7", tags=["Q7 - Influência"])
+app.include_router(q8_deputado.router,     prefix="/q8", tags=["Q8 - Visão Geral do Deputado"])

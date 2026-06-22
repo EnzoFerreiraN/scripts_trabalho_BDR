@@ -13,6 +13,7 @@ export default defineConfig({
       '/q5': 'http://localhost:8000',
       '/q6': 'http://localhost:8000',
       '/q7': 'http://localhost:8000',
+      '/q8': 'http://localhost:8000',
     }
   }
 })

@@ -250,6 +250,7 @@ export default function Q2Tab() {
         <TemaDeputadosModal
           tema={selectedTema}
           onClose={() => setSelectedTema(null)}
+          partido={partido}
         />
       )}
     </>

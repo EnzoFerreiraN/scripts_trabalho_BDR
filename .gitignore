@@ -1,5 +1,14 @@
 # ── Banco de dados ──────────────────────────────────
-dados/
+dados/eventos
+dados/eventosPresencaDeputados
+dados/gastos
+dados/proposicoes
+dados/proposicoesAutores
+dados/proposicoesTemas
+dados/votacoes
+dados/votacoesOrientacoes
+dados/votacoesProposicoes
+dados/votacoesVotos
 dados.zip
 camara.db*
 camara-2023-2026.db

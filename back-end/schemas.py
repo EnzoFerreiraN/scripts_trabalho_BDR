@@ -144,6 +144,7 @@ class DeputadoBasico(BaseModel):
 
 # Q7 - Influência
 class Influencia(BaseModel):
+    id: Optional[int] = None       # id do deputado (adicionado à vw_influencia)
     nome: str
     partido: str
     uf: str
@@ -154,3 +155,53 @@ class Influencia(BaseModel):
     score_ponderado: float = 0.0   # peso por papel (autoria) × margem de aprovação
     pct_influencia: float
     urlFoto: Optional[str] = None
+
+
+# Q8 - Visão Geral do Deputado
+class FornecedorDeputado(BaseModel):
+    fornecedor: str
+    cnpj_cpf: Optional[str] = None
+    num_transacoes: int
+    total_recebido: float
+
+
+class TemaDeputadoNuvem(BaseModel):
+    tema: str
+    num_proposicoes: int
+
+
+class PalavraEmentaDeputado(BaseModel):
+    palavra: str
+    frequencia: int
+
+
+class VotoAgregadoTema(BaseModel):
+    tema: str
+    voto: str
+    num_votos: int
+
+
+class InfluenciaDeputado(BaseModel):
+    score_ponderado: float
+    pct_influencia: float
+    em_pauta_plen: int
+    aprovadas_pelo_dep: int
+    taxa_aprovacao: Optional[float] = None
+
+
+class VisaoGeralDeputado(BaseModel):
+    id: int
+    nome: str
+    urlFoto: Optional[str] = None
+    partido: Optional[str] = None
+    uf: Optional[str] = None
+    total_gasto: float
+    num_transacoes: int
+    escolaridade: str
+    escolaridade_ord: int
+    gastos_categoria: list[GastoDetalhe]
+    fornecedores: list[FornecedorDeputado]
+    temas_nuvem: list[TemaDeputadoNuvem]
+    palavras_ementas: list[PalavraEmentaDeputado]
+    votos_por_tema: list[VotoAgregadoTema]
+    influencia: Optional[InfluenciaDeputado] = None

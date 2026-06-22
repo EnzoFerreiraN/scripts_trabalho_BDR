@@ -29,6 +29,7 @@ FROM deputado d
 JOIN gasto g ON g.idDeCadastro = d.id
 JOIN vw_escolaridade_norm en ON en.dep_id = d.id
 WHERE en.escolaridade_ord > 0
+  AND g.vlrLiquido > 0
 GROUP BY en.escolaridade, en.escolaridade_ord
 ORDER BY en.escolaridade_ord;
 """

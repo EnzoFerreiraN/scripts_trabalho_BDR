@@ -6,14 +6,22 @@ import Q4Tab from './components/Q4/Q4Tab';
 import Q5Tab from './components/Q5/Q5Tab';
 import Q6Tab from './components/Q6/Q6Tab';
 import Q7Tab from './components/Q7/Q7Tab';
+import Q8Tab from './components/Q8/Q8Tab';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 
 const TAB_COMPONENTS = {
   q1: Q1Tab, q2: Q2Tab, q3: Q3Tab,
-  q4: Q4Tab, q5: Q5Tab, q6: Q6Tab, q7: Q7Tab,
+  q4: Q4Tab, q5: Q5Tab, q6: Q6Tab, q7: Q7Tab, q8: Q8Tab,
 };
 
 const DASHBOARDS = [
+  {
+    id: 'deputado',
+    label: 'Visão Geral do Deputado',
+    tabs: [
+      { id: 'q8', label: 'Visão Geral do Deputado' },
+    ],
+  },
   {
     id: 'dinheiro',
     label: 'Gastos & Fornecedores',

@@ -1,7 +1,9 @@
 """
-etl.py — Carga dos CSVs da Câmara dos Deputados no banco SQLite.
-Uso: python etl.py
-Gera: camara.db no mesmo diretório.
+etl-2023-2026.py — Carga dos CSVs da Câmara dos Deputados no banco SQLite.
+Uso: python etl-2023-2026.py
+Gera: camara-2023-2026.db no mesmo diretório.
+
+Pré-requisito: rodar baixar_dados.py para obter os CSVs em dados/.
 """
 
 import csv
@@ -9,12 +11,17 @@ import sqlite3
 import sys
 from pathlib import Path
 
-csv.field_size_limit(10 * 1024 * 1024)
+# No Windows sys.maxsize pode estourar; usa o maior valor suportado pela plataforma.
+try:
+    csv.field_size_limit(sys.maxsize)
+except OverflowError:
+    csv.field_size_limit(2 ** 31 - 1)
 
-BASE   = Path(__file__).parent
-DB     = BASE / "camara-2023-2026.db"
-SCHEMA = BASE / "schema.sql"
-DATA   = BASE / "dados"
+BASE              = Path(__file__).parent
+DB                = BASE / "camara-2023-2026.db"
+SCHEMA            = BASE / "schema.sql"
+DATA              = BASE / "dados"
+FOTO_URL_TEMPLATE = "https://www.camara.leg.br/internet/deputado/bandep/{id}.jpg"
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -412,6 +419,24 @@ def load_autorias(conn):
     print(f"[OK] autoria          — {total} total")
 
 
+def preencher_fotos_faltantes(conn):
+    """
+    Preenche urlFoto com o link bandep para deputados que não tenham foto.
+    Rede de segurança: o baixar_dados.py já deve ter populado o CSV,
+    mas esta etapa garante consistência no banco.
+    """
+    cur = conn.execute("SELECT id FROM deputado WHERE urlFoto IS NULL OR urlFoto = ''")
+    ids = [row[0] for row in cur.fetchall()]
+    if not ids:
+        print("[OK] preencher_fotos  — todos os deputados já têm urlFoto")
+        return
+    with conn:
+        for dep_id in ids:
+            url = FOTO_URL_TEMPLATE.format(id=dep_id)
+            conn.execute("UPDATE deputado SET urlFoto = ? WHERE id = ?", (url, dep_id))
+    print(f"[OK] preencher_fotos  — {len(ids)} urlFoto(s) preenchida(s)")
+
+
 def load_classificacoes(conn):
     cols = ["idProposicao", "codTema", "uriProposicao", "siglaTipo",
             "numero", "ano", "relevancia"]
@@ -455,6 +480,7 @@ def main():
     print("[OK] schema criado\n")
 
     load_deputados(conn)
+    preencher_fotos_faltantes(conn)
     print()
     load_eventos(conn)
     print()

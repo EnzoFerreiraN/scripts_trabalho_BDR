@@ -13,7 +13,7 @@ import ErrorBox from '../shared/ErrorBox';
  *   tema    — objeto { codTema, tema, num_proposicoes, num_deputados }
  *   onClose — callback para fechar
  */
-export default function TemaDeputadosModal({ tema, onClose }) {
+export default function TemaDeputadosModal({ tema, onClose, partido }) {
   const [deputados, setDeputados] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
@@ -21,11 +21,13 @@ export default function TemaDeputadosModal({ tema, onClose }) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    apiFetch(`/q2/deputados-por-tema?cod_tema=${tema.codTema}&limit=15`)
+    const params = new URLSearchParams({ cod_tema: tema.codTema, limit: '15' });
+    if (partido) params.set('partido', partido);
+    apiFetch(`/q2/deputados-por-tema?${params.toString()}`)
       .then(setDeputados)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [tema.codTema]);
+  }, [tema.codTema, partido]);
 
   return (
     <Modal title={`Deputados — ${tema.tema}`} onClose={onClose} wide>
