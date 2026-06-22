@@ -209,15 +209,19 @@ def _compute_visao_geral(deputado_id: int) -> dict | None:
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 
-@router.get("/deputados", response_model=list[DeputadoBasico])
-def listar_deputados():
-    """Lista de deputados da legislatura atual para o autocomplete de busca."""
+def _get_deputados() -> list[dict]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(SQL_DEPUTADOS)
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+@router.get("/deputados", response_model=list[DeputadoBasico])
+def listar_deputados():
+    """Lista de deputados da legislatura atual para o autocomplete de busca."""
+    return cache.get_or_compute("q8:deputados", _get_deputados, ttl=cache.STATIC_TTL)
 
 
 @router.get("/visao-geral/{deputado_id}", response_model=VisaoGeralDeputado)
@@ -236,3 +240,9 @@ def visao_geral(deputado_id: int):
             detail=f"Deputado com id={deputado_id} não encontrado na legislatura 2023-2026.",
         )
     return data
+
+
+# Resposta pré-computada no startup (front pede /q8/deputados no mount).
+WARMUP = [
+    ("q8:deputados", _get_deputados),
+]

@@ -1,11 +1,13 @@
 import logging
 import os
 import time
+import threading
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+import cache
 from database import get_connection
 from views import init_views
 from routers import q1_gastos, q2_eixo_atuacao, q3_votacao_tema, q4_escolaridade, q5_fornecedores, q6_correlacao, q7_influencia, q8_deputado
@@ -21,12 +23,33 @@ SLOW_REQUEST_SECONDS = 1.0
 app = FastAPI(title="Câmara dos Deputados API", version="1.0.0")
 
 
+def _run_warmup() -> None:
+    """Pré-computa no cache todas as respostas das telas iniciais.
+    Roda em background para não atrasar o startup da API."""
+    _routers = (
+        q1_gastos, q2_eixo_atuacao, q3_votacao_tema, q4_escolaridade,
+        q5_fornecedores, q6_correlacao, q7_influencia, q8_deputado,
+    )
+    tasks = [t for m in _routers for t in getattr(m, "WARMUP", [])]
+    logger.info("Warm-up iniciado: %d respostas a pré-computar.", len(tasks))
+    start = time.perf_counter()
+    for key, fn in tasks:
+        try:
+            cache.get_or_compute(key, fn, ttl=cache.STATIC_TTL)
+            logger.info("  warm-up OK: %s", key)
+        except Exception:
+            logger.exception("  warm-up FALHOU: %s", key)
+    elapsed = time.perf_counter() - start
+    logger.info("Warm-up concluído: %d respostas em %.1fs.", len(tasks), elapsed)
+
+
 @app.on_event("startup")
 def startup():
     conn = get_connection()
     init_views(conn)
     conn.close()
-    logger.info("Views inicializadas; API pronta.")
+    threading.Thread(target=_run_warmup, daemon=True, name="cache-warmup").start()
+    logger.info("Views inicializadas; API pronta (warm-up em background).")
 
 
 @app.exception_handler(Exception)

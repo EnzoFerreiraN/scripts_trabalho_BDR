@@ -125,9 +125,7 @@ def _compute_palavras_ementas(partido: str | None) -> list[dict]:
     ]
 
 
-@router.get("/partidos")
-def listar_partidos():
-    """Lista de partidos disponíveis nas autorias de proposições."""
+def _get_partidos() -> list:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(SQL_PARTIDOS)
@@ -136,10 +134,16 @@ def listar_partidos():
     return partidos
 
 
+@router.get("/partidos")
+def listar_partidos():
+    """Lista de partidos disponíveis nas autorias de proposições."""
+    return cache.get_or_compute("q2:partidos", _get_partidos, ttl=cache.STATIC_TTL)
+
+
 @router.get("/ranking-temas", response_model=list[RankingTema])
 def ranking_temas(partido: str | None = Query(default=None)):
     cache_key = f"q2:ranking-temas:{partido or 'all'}"
-    return cache.get_or_compute(cache_key, lambda: _compute_ranking_temas(partido))
+    return cache.get_or_compute(cache_key, lambda: _compute_ranking_temas(partido), ttl=cache.STATIC_TTL)
 
 
 @router.get("/palavras-ementas", response_model=list[PalavraEmenta])
@@ -151,7 +155,7 @@ def palavras_ementas(
     (tokenização + remoção de stopwords). Resultado cacheado em memória —
     a primeira chamada percorre todas as ementas e pode levar alguns segundos."""
     cache_key = f"q2:palavras-ementas:{partido or 'all'}"
-    palavras = cache.get_or_compute(cache_key, lambda: _compute_palavras_ementas(partido))
+    palavras = cache.get_or_compute(cache_key, lambda: _compute_palavras_ementas(partido), ttl=cache.STATIC_TTL)
     return palavras[:limit]
 
 
@@ -177,3 +181,11 @@ def deputados_por_tema(
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# Respostas pré-computadas no startup (sem filtro de partido — carga inicial do front).
+WARMUP = [
+    ("q2:partidos",             _get_partidos),
+    ("q2:ranking-temas:all",    lambda: _compute_ranking_temas(None)),
+    ("q2:palavras-ementas:all", lambda: _compute_palavras_ementas(None)),
+]

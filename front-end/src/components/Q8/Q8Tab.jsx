@@ -26,6 +26,8 @@ export default function Q8Tab() {
   const [initLoading, setInitLoading] = useState(true);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState(null);
+  const [proposicoes, setProposicoes] = useState([]);
+  const [propLoading, setPropLoading] = useState(false);
 
   // Carrega lista de deputados para o autocomplete.
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function Q8Tab() {
 
   async function buscar() {
     if (!selectedDep) { setError('Selecione um deputado da lista.'); return; }
-    setLoading(true); setError(null); setData(null);
+    setLoading(true); setError(null); setData(null); setProposicoes([]);
     try {
       const d = await apiFetch(`/q8/visao-geral/${selectedDep.id}`);
       setData(d);
@@ -47,6 +49,17 @@ export default function Q8Tab() {
       setLoading(false);
     }
   }
+
+  // Quando o deputado carregado tiver dados de influência, busca as proposições
+  // que compõem o score (endpoint compartilhado com Q7).
+  useEffect(() => {
+    if (!data?.influencia || !data?.id) return;
+    setPropLoading(true);
+    apiFetch(`/q7/proposicoes-influencia/${data.id}`)
+      .then(setProposicoes)
+      .catch(() => setProposicoes([]))
+      .finally(() => setPropLoading(false));
+  }, [data?.id, data?.influencia]);
 
   if (initLoading) return <TabSkeleton />;
 
@@ -119,16 +132,103 @@ export default function Q8Tab() {
     },
   ];
 
-  // ── Fornecedores: colunas da DataTable ───────────────────────────────────
+  // ── Fornecedores: colunas da DataTable com barra de proporção ────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const totalGasto = data?.total_gasto || 1;
   const fornCols = [
-    { key: 'fornecedor', header: 'Fornecedor', sortable: true },
+    {
+      key: 'fornecedor', header: 'Fornecedor', sortable: true,
+      render: d => {
+        const pctVal = Math.min(100, (d.total_recebido / totalGasto) * 100);
+        return (
+          <div style={{ position: 'relative', minWidth: 0 }}>
+            {/* barra de fundo proporcional ao % do total do deputado */}
+            <div style={{
+              position: 'absolute', left: 0, top: 0, bottom: 0,
+              width: `${pctVal}%`,
+              background: 'var(--accent, #2563eb)',
+              opacity: 0.08,
+              borderRadius: 3,
+              pointerEvents: 'none',
+            }} />
+            <span style={{ position: 'relative', fontSize: '0.82rem', wordBreak: 'break-word' }}>
+              {d.fornecedor || '—'}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'cnpj_cpf', header: 'CNPJ/CPF',
+      render: d => <span style={{ color: 'var(--muted)', fontSize: '0.78rem', fontVariantNumeric: 'tabular-nums' }}>{d.cnpj_cpf || '—'}</span>,
+    },
     {
       key: 'num_transacoes', header: 'Transações', align: 'right',
       sortable: true, render: d => fmtN(d.num_transacoes),
     },
     {
+      key: 'ticket_medio', header: 'Ticket médio', align: 'right',
+      sortable: true, sortValue: d => d.total_recebido / d.num_transacoes,
+      render: d => fmt(d.total_recebido / d.num_transacoes),
+    },
+    {
       key: 'total_recebido', header: 'Total', align: 'right',
       sortable: true, render: d => fmt(d.total_recebido),
+    },
+    {
+      key: 'pct_total', header: '% total', align: 'right',
+      sortable: true, sortValue: d => d.total_recebido / totalGasto,
+      render: d => pct((d.total_recebido / totalGasto) * 100),
+    },
+  ];
+
+  // ── Proposições que compõem o score de influência ────────────────────────
+  const propCols = [
+    {
+      key: 'proposicao', header: 'Proposição',
+      render: d => (
+        <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontWeight: 500 }}>
+          {d.siglaTipo} {d.numero}/{d.ano}
+        </span>
+      ),
+    },
+    {
+      key: 'ementa', header: 'Ementa',
+      render: d => (
+        <span style={{ fontSize: '0.78rem', color: 'var(--muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {d.ementa || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'papel', header: 'Papel',
+      render: d => {
+        const principal = d.ordemAssinatura <= 1 || d.proponente === 1;
+        return (
+          <span className="badge" style={{
+            background: principal ? 'rgba(79,70,229,0.12)' : 'rgba(0,0,0,0.06)',
+            color: principal ? 'var(--accent, #4f46e5)' : 'var(--muted)',
+            fontSize: '0.72rem',
+          }}>
+            {principal ? 'Autor principal' : `${d.ordemAssinatura}ª assinatura`}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'peso', header: 'Peso', align: 'right',
+      sortable: true, sortValue: d => d.peso,
+      render: d => d.peso.toFixed(2),
+    },
+    {
+      key: 'margem', header: 'Margem', align: 'right',
+      sortable: true, sortValue: d => d.margem,
+      render: d => pct(d.margem * 100),
+    },
+    {
+      key: 'contribuicao', header: 'Pontos', align: 'right', bold: true,
+      sortable: true, sortValue: d => d.contribuicao,
+      render: d => d.contribuicao.toFixed(3),
     },
   ];
 
@@ -344,11 +444,36 @@ export default function Q8Tab() {
             </div>
           )}
 
+          {/* ── PROPOSIÇÕES QUE COMPÕEM O SCORE ──────────────────────── */}
+          {data.influencia && (
+            <div className="card" style={{ marginTop: '1rem' }}>
+              <h3>Proposições aprovadas no plenário</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: '0.25rem 0 0.75rem' }}>
+                Cada proposição contribui com <strong>peso × margem de aprovação</strong> para o score.
+                {proposicoes.length > 0 && (
+                  <> Score total = {proposicoes.reduce((s, p) => s + p.contribuicao, 0).toFixed(2)}</>
+                )}
+              </p>
+              {propLoading ? (
+                <LoadingSpinner text="Carregando proposições…" />
+              ) : proposicoes.length > 0 ? (
+                <DataTable
+                  columns={propCols}
+                  rows={proposicoes}
+                  rowKey={d => d.id}
+                  initialSort={{ key: 'contribuicao', dir: 'desc' }}
+                />
+              ) : (
+                <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>Nenhuma proposição encontrada.</p>
+              )}
+            </div>
+          )}
+
           {/* ── METODOLOGIA ───────────────────────────────────────────── */}
           <InfoCard title="Metodologia & notas">
             <p><strong>Gastos (CEAP):</strong> registros da Cota para o Exercício da Atividade Parlamentar agregados por categoria de despesa. Exibidas as 10 maiores categorias do parlamentar.</p>
             <p><strong>Fornecedores:</strong> empresas ou pessoas físicas com maior volume total recebido do parlamentar via CEAP (top 10).</p>
-            <p><strong>Temas legislativos:</strong> eixos temáticos oficiais da Câmara (ex.: Saúde, Tributação, Segurança Pública) ponderados pelo número de proposições de autoria do deputado classificadas em cada tema. Tamanho proporcional a √(num_proposicoes).</p>
+            <p><strong>Temas legislativos:</strong> eixos temáticos oficiais da Câmara (ex.: Saúde, Tributação, Segurança Pública) ponderados pelo número de proposições de autoria do deputado classificadas em cada tema. Tamanho da fonte proporcional a (peso − mín)^0.7, com escala plena do menor ao maior termo.</p>
             <p><strong>Palavras das ementas:</strong> termos mais frequentes nas ementas das proposições deste parlamentar, após tokenização e remoção de stopwords do português.</p>
             <p><strong>Padrão de votação:</strong> contagem de votos nominais em votações do plenário, agrupados por tema. O voto predominante é o tipo com maior frequência no tema. A distribuição geral mostra todos os votos somados.</p>
             <p><strong>Influência:</strong> score baseado no papel de autoria (autor principal = 1,0; coautor = 1/ordemAssinatura) multiplicado pela margem de aprovação de cada proposição aprovada no plenário. <code>Influência % = 70% × score_normalizado + 30% × taxa_aprovação</code>. Parlamentares sem proposições aprovadas no plenário não aparecem no ranking.</p>

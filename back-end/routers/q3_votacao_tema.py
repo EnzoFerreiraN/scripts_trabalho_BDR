@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
+
+import cache
 from database import get_connection
 from schemas import Tema, VotoPorTema, DeputadoBasico
 
@@ -34,8 +36,7 @@ ORDER BY d.nome, t.tema, num_votos DESC;
 """
 
 
-@router.get("/deputados", response_model=list[DeputadoBasico])
-def listar_deputados():
+def _get_deputados() -> list[dict]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(SQL_DEPUTADOS)
@@ -44,14 +45,23 @@ def listar_deputados():
     return [dict(r) for r in rows]
 
 
-@router.get("/temas", response_model=list[Tema])
-def listar_temas():
+def _get_temas() -> list[dict]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(SQL_TEMAS)
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+@router.get("/deputados", response_model=list[DeputadoBasico])
+def listar_deputados():
+    return cache.get_or_compute("q3:deputados", _get_deputados, ttl=cache.STATIC_TTL)
+
+
+@router.get("/temas", response_model=list[Tema])
+def listar_temas():
+    return cache.get_or_compute("q3:temas", _get_temas, ttl=cache.STATIC_TTL)
 
 
 @router.get("/votos", response_model=list[VotoPorTema])
@@ -70,3 +80,10 @@ def votos_por_tema(
             detail=f"Nenhum resultado para deputado_id={deputado_id} e tema='{tema}'.",
         )
     return [dict(r) for r in rows]
+
+
+# Respostas pré-computadas no startup (front pede ambas no mount).
+WARMUP = [
+    ("q3:temas",    _get_temas),
+    ("q3:deputados", _get_deputados),
+]

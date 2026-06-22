@@ -18,6 +18,7 @@ import RankNum from '../shared/RankNum';
 import DataTable from '../shared/DataTable';
 import Podium from './Podium';
 import InfoCard from '../shared/InfoCard';
+import ProposicoesInfluenciaModal from './ProposicoesInfluenciaModal';
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, ScatterController, PointElement, Tooltip, Legend);
 
@@ -25,6 +26,7 @@ export default function Q7Tab() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDep, setSelectedDep] = useState(null);
 
   useEffect(() => {
     apiFetch('/q7/influencia?limit=200')
@@ -171,14 +173,23 @@ export default function Q7Tab() {
 
       <div className="card">
         <h3>Ranking de influência</h3>
+        <p style={{ fontSize: '0.78rem', color: 'var(--muted)', margin: '-0.25rem 0 0.5rem' }}>
+          Clique em qualquer deputado para ver as proposições que compõem o score.
+        </p>
         <DataTable
           columns={columns}
           rows={data}
           rowKey={(d, i) => d.nome + i}
           search={{ placeholder: 'Buscar por nome, partido ou UF…', accessor: d => `${d.nome} ${d.partido} ${d.uf}` }}
           initialSort={{ key: 'pct_influencia', dir: 'desc' }}
+          onRowClick={setSelectedDep}
+          rowTitle="Ver proposições do score"
         />
       </div>
+
+      {selectedDep && (
+        <ProposicoesInfluenciaModal dep={selectedDep} onClose={() => setSelectedDep(null)} />
+      )}
 
       <InfoCard>
         <p>O <strong>índice de influência</strong> (0–100) mede o impacto real do deputado nas leis aprovadas no plenário. Ele valoriza quem foi <strong>autor principal</strong> de uma proposta — não apenas mais um coautor — e quem aprovou projetos com <strong>votação folgada</strong> (sinal de consenso mais amplo).</p>

@@ -176,7 +176,7 @@ def _query(sql: str) -> list[dict]:
 
 def _cached_query(key: str, sql: str) -> list[dict]:
     # Dados estáticos da legislatura: cache evita re-executar as CTEs pesadas.
-    return cache.get_or_compute(f"q6:{key}", lambda: _query(sql))
+    return cache.get_or_compute(f"q6:{key}", lambda: _query(sql), ttl=cache.STATIC_TTL)
 
 
 @router.get("/gastos", response_model=list[CorrelacaoGastos])
@@ -207,3 +207,14 @@ def correlacao_presenca_plenario():
 @router.get("/dados-deputado", response_model=list[DadosDeputadoCorrelacao])
 def dados_deputado():
     return _cached_query("dados-deputado", SQL_DADOS_DEPUTADO)
+
+
+# Respostas pré-computadas no startup (front pede todas essas no mount do Q6Tab).
+WARMUP = [
+    ("q6:gastos",            lambda: _query(SQL_6A)),
+    ("q6:fidelidade",        lambda: _query(SQL_6B)),
+    ("q6:proposicoes",       lambda: _query(SQL_6C)),
+    ("q6:presenca-eventos",  lambda: _query(SQL_6D)),
+    ("q6:presenca-plenario", lambda: _query(SQL_6E)),
+    ("q6:dados-deputado",    lambda: _query(SQL_DADOS_DEPUTADO)),
+]

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Pie } from 'react-chartjs-2';
 import {
-  Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend
+  Chart as ChartJS, BarElement, ArcElement, CategoryScale, LinearScale, Tooltip, Legend
 } from 'chart.js';
 import { apiFetch } from '../../lib/api';
 import { fmt, fmtN, shortName } from '../../lib/formatters';
@@ -18,7 +18,7 @@ import GastoDetalhePanel from './GastoDetalhePanel';
 import DeputadoSearch from '../Q3/DeputadoSearch';
 import InfoCard from '../shared/InfoCard';
 
-ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+ChartJS.register(BarElement, ArcElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 export default function Q1Tab() {
   const [data, setData] = useState([]);
@@ -26,11 +26,34 @@ export default function Q1Tab() {
   const [filtros, setFiltros] = useState({ partidos: [], anos: [] });
   const [partido, setPartido] = useState('');
   const [ano, setAno] = useState('');
+  // Filtro que foi efetivamente aplicado (ao clicar no botão) — controla qual gráfico mostrar.
+  const [appliedPartido, setAppliedPartido] = useState('');
+  // Dados do 2º gráfico: barras (todos os partidos) ou pizza (categorias de um partido).
+  const [partidoAgg, setPartidoAgg] = useState([]);
+  const [categoriaPartido, setCategoriaPartido] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refetching, setRefetching] = useState(false);
   const [error, setError] = useState(null);
   const [selectedDep, setSelectedDep] = useState(null);
   const [searchDep, setSearchDep] = useState(null);
+
+  // Busca os dados do 2º gráfico conforme o filtro aplicado.
+  function carregarDistribuicao(p, a) {
+    if (p) {
+      const params = new URLSearchParams({ partido: p });
+      if (a) params.set('ano', a);
+      apiFetch(`/q1/gastos-categoria-partido?${params.toString()}`)
+        .then(setCategoriaPartido)
+        .catch(() => {});
+    } else {
+      const params = new URLSearchParams();
+      if (a) params.set('ano', a);
+      const qs = params.toString();
+      apiFetch(`/q1/gastos-por-partido${qs ? '?' + qs : ''}`)
+        .then(setPartidoAgg)
+        .catch(() => {});
+    }
+  }
 
   // Carregamento inicial: ranking sem filtro + deputados para autocomplete + opções de filtro.
   useEffect(() => {
@@ -38,8 +61,14 @@ export default function Q1Tab() {
       apiFetch('/q1/gastos-deputados?limit=100'),
       apiFetch('/q1/deputados'),
       apiFetch('/q1/filtros'),
+      apiFetch('/q1/gastos-por-partido'),
     ])
-      .then(([rank, deps, f]) => { setData(rank); setDeputados(deps); setFiltros(f); })
+      .then(([rank, deps, f, agg]) => {
+        setData(rank);
+        setDeputados(deps);
+        setFiltros(f);
+        setPartidoAgg(agg);
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -50,8 +79,14 @@ export default function Q1Tab() {
     if (partido) params.set('partido', partido);
     if (ano) params.set('ano', ano);
     setRefetching(true);
-    apiFetch(`/q1/gastos-deputados?${params.toString()}`)
-      .then(setData)
+    Promise.all([
+      apiFetch(`/q1/gastos-deputados?${params.toString()}`),
+    ])
+      .then(([rank]) => {
+        setData(rank);
+        setAppliedPartido(partido);
+        carregarDistribuicao(partido, ano);
+      })
       .catch(e => setError(e.message))
       .finally(() => setRefetching(false));
   }
@@ -116,7 +151,6 @@ export default function Q1Tab() {
   const total = data.reduce((s, d) => s + d.total_gasto, 0);
   const top5  = data.slice(0, 5);
   const top20 = data.slice(0, 20);
-  const top50 = data.slice(0, 50);
 
   const barData = hBarData(
     top20.map(d => shortName(d.nome).split(' ').slice(0, 2).join(' ')),
@@ -124,19 +158,40 @@ export default function Q1Tab() {
   );
   const barOpts = hBarOptions(fmt);
 
-  const byPartido = {};
-  top50.forEach(d => { byPartido[d.partido] = (byPartido[d.partido] || 0) + d.total_gasto; });
-  const sorted = Object.entries(byPartido).sort((a, b) => b[1] - a[1]);
-  const partidoData = {
-    labels: sorted.map(e => e[0]),
-    datasets: [{ data: sorted.map(e => e[1]), backgroundColor: PALETTE, borderRadius: 4 }]
+  // Gráfico 2 — barras de gasto por partido (todos os deputados, todos os partidos).
+  const partidoBarData = {
+    labels: partidoAgg.map(e => e.partido),
+    datasets: [{ data: partidoAgg.map(e => e.total_gasto), backgroundColor: PALETTE, borderRadius: 4 }]
   };
-  const partidoOpts = {
+  const partidoBarOpts = {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + fmt(c.raw) } } },
     scales: {
       x: { grid: { display: false }, ticks: { color: tickColor, font: baseFont } },
       y: { grid: { color: gridColor }, ticks: { color: tickColor, font: baseFont, callback: v => fmt(v) } }
+    }
+  };
+
+  // Gráfico 2 — pizza de categorias de um partido específico (máx. 8 + "Outros").
+  const MAX_PIZZA_FATIAS = 8;
+  const catTop = categoriaPartido.slice(0, MAX_PIZZA_FATIAS);
+  const catOutros = categoriaPartido.slice(MAX_PIZZA_FATIAS);
+  const catLabels = [...catTop.map(c => c.categoria)];
+  const catValues = [...catTop.map(c => c.total)];
+  if (catOutros.length > 0) {
+    catLabels.push('Outros');
+    catValues.push(catOutros.reduce((s, c) => s + c.total, 0));
+  }
+  const pieColors = catLabels.map((_, i) => PALETTE[i % PALETTE.length]);
+  const pizzaData = {
+    labels: catLabels,
+    datasets: [{ data: catValues, backgroundColor: pieColors, borderWidth: 1 }]
+  };
+  const pizzaOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { color: tickColor, font: baseFont, boxWidth: 14 } },
+      tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.raw)}` } }
     }
   };
 
@@ -223,12 +278,31 @@ export default function Q1Tab() {
           </div>
         </div>
         <div className="card">
-          <h3>Distribuição por partido (top 50)</h3>
-          <div className="chart-wrap-tall">
-            <Bar data={partidoData} options={partidoOpts}
-              role="img"
-              aria-label={`Gasto agregado por partido entre os 50 maiores. Maior: ${sorted[0][0]}, ${fmt(sorted[0][1])}.`} />
-          </div>
+          {appliedPartido ? (
+            <>
+              <h3>Gastos de {appliedPartido} por categoria</h3>
+              <div className="chart-wrap-tall">
+                {categoriaPartido.length > 0
+                  ? <Pie data={pizzaData} options={pizzaOpts}
+                      role="img"
+                      aria-label={`Distribuição das categorias de gasto do partido ${appliedPartido}. Maior categoria: ${catLabels[0]}, ${fmt(catValues[0])}.`} />
+                  : <p style={{ color: tickColor, textAlign: 'center', paddingTop: '2rem' }}>Sem dados para exibir.</p>
+                }
+              </div>
+            </>
+          ) : (
+            <>
+              <h3>Gasto por partido</h3>
+              <div className="chart-wrap-tall">
+                {partidoAgg.length > 0
+                  ? <Bar data={partidoBarData} options={partidoBarOpts}
+                      role="img"
+                      aria-label={`Gasto total por partido entre todos os deputados. Maior: ${partidoAgg[0].partido}, ${fmt(partidoAgg[0].total_gasto)}.`} />
+                  : <p style={{ color: tickColor, textAlign: 'center', paddingTop: '2rem' }}>Carregando…</p>
+                }
+              </div>
+            </>
+          )}
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import { PALETTE, wordcloudBg, baseFont } from '../../lib/chartDefaults';
 import { fmtN } from '../../lib/formatters';
 
 const MIN_FONT = 12;
-const MAX_FONT = 64;
+const MAX_FONT = 96;   // teto mais alto para ampliar contraste visual
 const HEIGHT   = 360;
 
 // Hash determinístico de string → índice estável na PALETTE.
@@ -48,9 +48,14 @@ export default function WordCloudCanvas({ items, onWordClick, tooltipFormatter, 
     canvas.style.height = `${HEIGHT}px`;
 
     const maxPeso = Math.max(...items.map(d => d.peso));
+    const minPeso = Math.min(...items.map(d => d.peso));
+    const range   = maxPeso - minPeso || 1; // evita divisão por zero se todos iguais
     const list = items.map(d => [
       d.texto,
-      Math.round((MIN_FONT + Math.sqrt(d.peso / maxPeso) * (MAX_FONT - MIN_FONT)) * dpr),
+      // Normaliza no intervalo real [minPeso, maxPeso] e aplica expoente 0.7:
+      // dá contraste pleno (menor→piso, maior→teto) com curva suave que
+      // preserva área perceptível nos termos intermediários.
+      Math.round((MIN_FONT + Math.pow((d.peso - minPeso) / range, 0.7) * (MAX_FONT - MIN_FONT)) * dpr),
     ]);
 
     WordCloud(canvas, {
@@ -141,7 +146,7 @@ export default function WordCloudCanvas({ items, onWordClick, tooltipFormatter, 
         </div>
       )}
       <p style={{ fontSize: '0.72rem', color: 'var(--muted)', margin: '0.45rem 0 0' }}>
-        Escala: tamanho da fonte ∝ √peso · menor termo = {fmtN(minPeso)} · maior = {fmtN(maxPeso)}
+        Escala: menor = {fmtN(minPeso)} · maior = {fmtN(maxPeso)} · tamanho ∝ (peso − mín)^0.7
       </p>
     </div>
   );

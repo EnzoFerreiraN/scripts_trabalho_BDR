@@ -11,7 +11,8 @@ from typing import Any, Callable
 _store: dict[str, tuple[float, Any]] = {}
 _lock = Lock()
 
-DEFAULT_TTL = 3600  # 1h — dados só mudam quando o banco é regenerado
+DEFAULT_TTL = 3600        # 1h (padrão genérico)
+STATIC_TTL  = 24 * 3600  # 24h — para dados estáticos da legislatura (não mudam em runtime)
 
 
 def get_or_compute(key: str, fn: Callable[[], Any], ttl: float = DEFAULT_TTL) -> Any:

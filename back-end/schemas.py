@@ -125,6 +125,20 @@ class CorrelacaoPresencaPlenario(BaseModel):
     media_por_deputado: float
 
 
+# Q1 - Agregado por partido (todos os deputados)
+class GastoPartido(BaseModel):
+    partido: str
+    num_deputados: int
+    total_gasto: float
+
+
+# Q1 - Categorias de gasto de um partido específico
+class GastoCategoriaPartido(BaseModel):
+    categoria: str
+    num_transacoes: int
+    total: float
+
+
 # Q1 - Detalhe de gastos por deputado
 class GastoDetalhe(BaseModel):
     categoria: str
@@ -155,6 +169,20 @@ class Influencia(BaseModel):
     score_ponderado: float = 0.0   # peso por papel (autoria) × margem de aprovação
     pct_influencia: float
     urlFoto: Optional[str] = None
+
+
+# Q7 - Proposição individual que contribuiu para o score de influência
+class ProposicaoInfluencia(BaseModel):
+    id: int
+    siglaTipo: Optional[str] = None
+    numero: Optional[int] = None
+    ano: Optional[int] = None
+    ementa: Optional[str] = None
+    ordemAssinatura: Optional[int] = None
+    proponente: Optional[int] = None
+    peso: float          # papel: 1.0 se autor principal; 1/ordemAssinatura caso contrário
+    margem: float        # votosSim / (votosSim + votosNao) na votação plenária
+    contribuicao: float  # peso × margem (pontos que entram no score_ponderado)
 
 
 # Q8 - Visão Geral do Deputado

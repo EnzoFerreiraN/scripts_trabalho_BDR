@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+
+import cache
 from database import get_connection
 from schemas import EscolaridadeDistribuicao
 
@@ -32,8 +34,7 @@ ORDER BY num_deputados DESC;
 """
 
 
-@router.get("/escolaridade", response_model=list[EscolaridadeDistribuicao])
-def escolaridade():
+def _get_escolaridade() -> list[dict]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(SQL)
@@ -42,13 +43,29 @@ def escolaridade():
     return [dict(r) for r in rows]
 
 
-@router.get("/escolaridade-bruta", response_model=list[EscolaridadeDistribuicao])
-def escolaridade_bruta():
-    """Distribuição pelos valores declarados originais (sem consolidação em
-    níveis ordinais). Mesmo conjunto de deputados do endpoint /escolaridade."""
+def _get_escolaridade_bruta() -> list[dict]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(SQL_BRUTA)
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+@router.get("/escolaridade", response_model=list[EscolaridadeDistribuicao])
+def escolaridade():
+    return cache.get_or_compute("q4:escolaridade", _get_escolaridade, ttl=cache.STATIC_TTL)
+
+
+@router.get("/escolaridade-bruta", response_model=list[EscolaridadeDistribuicao])
+def escolaridade_bruta():
+    """Distribuição pelos valores declarados originais (sem consolidação em
+    níveis ordinais). Mesmo conjunto de deputados do endpoint /escolaridade."""
+    return cache.get_or_compute("q4:escolaridade-bruta", _get_escolaridade_bruta, ttl=cache.STATIC_TTL)
+
+
+# Respostas pré-computadas no startup (front pede ambas no mount).
+WARMUP = [
+    ("q4:escolaridade",       _get_escolaridade),
+    ("q4:escolaridade-bruta", _get_escolaridade_bruta),
+]
