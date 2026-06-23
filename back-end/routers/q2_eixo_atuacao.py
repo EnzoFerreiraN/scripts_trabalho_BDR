@@ -33,10 +33,13 @@ ORDER BY num_proposicoes DESC;
 """
 
 SQL_PARTIDOS = """
-SELECT DISTINCT RTRIM(siglaPartidoAutor, '*') AS partido
-FROM autoria
-WHERE siglaPartidoAutor IS NOT NULL AND siglaPartidoAutor != ''
-ORDER BY RTRIM(siglaPartidoAutor, '*');
+SELECT DISTINCT RTRIM(a.siglaPartidoAutor, '*') AS partido
+FROM autoria a
+JOIN classificacao c ON c.idProposicao = a.idProposicao
+WHERE a.idDeputadoAutor IS NOT NULL
+  AND a.siglaPartidoAutor IS NOT NULL
+  AND a.siglaPartidoAutor != ''
+ORDER BY RTRIM(a.siglaPartidoAutor, '*');
 """
 
 SQL_DEPUTADOS_POR_TEMA = """
