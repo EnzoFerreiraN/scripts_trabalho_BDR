@@ -5,24 +5,24 @@
 ```
 projeto final/
 ├── back-end/        # API REST — FastAPI + SQLite
-│   ├── main.py
-│   ├── database.py
+│   ├── main.py      # /health, warm-up de cache no startup, CORS
+│   ├── database.py  # DB_PATH, conexão somente leitura, PRAGMAs de memória
 │   ├── schemas.py
 │   ├── views.py     # SQL Views criadas no startup (vw_deputado_atual, vw_gasto_deputado, vw_escolaridade_norm, vw_influencia)
 │   ├── cache.py     # Cache TTL em memória para queries pesadas
 │   ├── stopwords_pt.py  # Stopwords PT-BR da nuvem de palavras das ementas
-│   └── routers/     # q1_gastos … q7_influencia
+│   └── routers/     # q1_gastos … q8_deputado
 ├── front-end/       # Dashboard — React + Vite
 │   ├── src/
-│   │   ├── App.jsx
-│   │   ├── components/   # Q1–Q7, shared (Modal, DataTable, Avatar, Badge…)
+│   │   ├── App.jsx       # 4 dashboards: Visão Geral (Q8) · Gastos & Fornecedores (Q1 Q5) · Atuação & Influência (Q2 Q3 Q7) · Escolaridade & Perfil (Q4 Q6)
+│   │   ├── components/   # Q1–Q8, shared (Modal, DataTable, Avatar, Badge…)
 │   │   ├── lib/          # api.js, formatters.js, chartDefaults.js, stats.js
 │   │   └── styles/
 │   └── package.json
 └── requirements.txt
 ```
 
-O back-end serve **exclusivamente** a API REST (porta 8000). O front-end é um projeto React independente servido pelo Vite (porta 5173) em desenvolvimento; em produção, basta fazer o build e servir a pasta `dist/` com qualquer servidor estático.
+O back-end serve **exclusivamente** a API REST (porta 8000). O front-end é um projeto React independente servido pelo Vite (porta 5173) em desenvolvimento; em produção gera-se o build estático na pasta `dist/` com `npm run build`.
 
 ---
 
@@ -32,7 +32,7 @@ O back-end serve **exclusivamente** a API REST (porta 8000). O front-end é um p
 
 - Python 3.10+
 - Node.js 18+
-- O banco de dados `camara-2023-2026.db` na raiz do projeto (ver [Gerando o banco do zero](#gerando-o-banco-do-zero))
+- O banco de dados `camara-2023-2026.db` na raiz do projeto (ver [Gerando o banco do zero](#gerando-o-banco-do-zero)). O caminho pode ser sobrescrito pela env var `DB_PATH`; a conexão é sempre somente leitura.
 
 ### 1. Instalar dependências
 
@@ -70,7 +70,7 @@ npm run dev
 
 O dashboard abre em **http://localhost:5173**.
 
-> O Vite encaminha automaticamente as chamadas `/q1` … `/q7` para o FastAPI via proxy configurado em `vite.config.js` — não é necessário alterar nenhuma URL.
+> O Vite encaminha automaticamente as chamadas `/q1` … `/q8` para o FastAPI via proxy configurado em `vite.config.js` — não é necessário alterar nenhuma URL.
 
 ### Build de produção
 
@@ -86,28 +86,32 @@ npm run build
 
 O banco `camara-2023-2026.db` (~810 MB) **não é versionado** no Git. Para gerá-lo a partir dos dados abertos da Câmara:
 
-### 1. Baixar os CSVs de votações/proposições
+### 1. Preparar os CSVs (download + limpeza)
 
 ```bash
-python baixar_csvs.py
+python baixar_dados.py
 ```
 
-Baixa de `dadosabertos.camara.leg.br` os 8 conjuntos anuais (2023–2026) para subpastas de `dados/`: `votacoes`, `proposicoes`, `proposicoesTemas`, `votacoesOrientacoes`, `eventosPresencaDeputados`, `votacoesVotos`, `votacoesProposicoes` e `proposicoesAutores`. Arquivos já baixados são pulados (idempotente). Requer internet; pode levar vários minutos.
+Script unificado que executa quatro etapas em sequência:
 
-### 2. Colocar manualmente os CSVs que o script não baixa
+1. **CSVs anuais** — baixa de `dadosabertos.camara.leg.br` os 9 conjuntos anuais (2023–2026) para subpastas de `dados/`: `eventos`, `votacoes`, `proposicoes`, `proposicoesTemas`, `votacoesOrientacoes`, `eventosPresencaDeputados`, `votacoesVotos`, `votacoesProposicoes` e `proposicoesAutores`.
+2. **Gastos CEAP** — baixa `Ano-AAAA.csv.zip` de `camara.leg.br/cotas` e extrai o CSV em `dados/gastos/` para cada ano.
+3. **Limpeza de `dados/deputados.csv`** — garante coluna `id` (derivada da `uri` se ausente) e preenche `urlFoto` com o link bandep fixo para todos os deputados.
+4. **Limpeza de `proposicoesTemas`** — adiciona coluna `idProposicao` (derivada de `uriProposicao`) em cada `proposicoesTemas-*.csv`.
 
-- **`dados/deputados.csv`** — cadastro de deputados: [dadosabertos.camara.leg.br/arquivos/deputados/csv/deputados.csv](https://dadosabertos.camara.leg.br/arquivos/deputados/csv/deputados.csv)
-- **`dados/gastos/Ano-2023.csv` … `Ano-2026.csv`** — despesas CEAP (Cota Parlamentar), disponíveis em [camara.leg.br/cota-parlamentar](https://www.camara.leg.br/cota-parlamentar/) (arquivos `Ano-XXXX.csv.zip`, descompactar na pasta `dados/gastos/`)
+Arquivos já baixados são pulados (idempotente). Requer internet; pode levar vários minutos.
 
-### 3. Rodar o ETL
+> **Escolaridade:** o campo `escolaridade` em `dados/deputados.csv` não é coberto por `baixar_dados.py` — use `scripts_limpeza/add_esc_photo.py` para preencher consultando a API da Câmara por deputado (requer internet, pode ser lento).
+
+### 2. Rodar o ETL
 
 ```bash
 python etl-2023-2026.py
 ```
 
-Aplica o `schema.sql` (13 tabelas + 12 índices) e carrega todos os CSVs no banco via `INSERT OR IGNORE` — o script é **idempotente** e pode ser re-executado para completar cargas parciais. Ao final imprime a contagem de linhas por tabela e grava o log em `etl_log.txt`.
+Aplica o `schema.sql` (13 tabelas + 13 índices) e carrega todos os CSVs no banco via `INSERT OR IGNORE` — o script é **idempotente** e pode ser re-executado para completar cargas parciais. Ao final imprime a contagem de linhas por tabela e grava o log em `etl_log.txt`.
 
-> `etl.py` é uma versão anterior do mesmo script; use `etl-2023-2026.py`. O script opcional `update_foto_deputados.py` atualiza as URLs de foto dos deputados consultando a API da Câmara.
+> Use `etl-2023-2026.py`. Para preencher ou atualizar `escolaridade` e `urlFoto` nos dados de deputados, use `scripts_limpeza/add_esc_photo.py` (consulta a API da Câmara por deputado).
 
 As 4 views SQL (`vw_deputado_atual`, `vw_gasto_deputado`, `vw_escolaridade_norm`, `vw_influencia`) **não** fazem parte do ETL — são criadas automaticamente pelo back-end no startup (`init_views()`).
 
@@ -639,13 +643,15 @@ API de Dados Abertos da Câmara dos Deputados: <https://dadosabertos.camara.leg.
    c. Nº de proposições apresentadas;
    d. Presença em eventos/comissões;
    e. Presença no plenário.
-7. Ranking de influência baseado no percentual de propostas aprovadas pelo deputado em relação às que ele apresentou no plenário, ponderado pelo papel de autoria e pela margem de aprovação.
+8. Ranking de influência baseado no percentual de propostas aprovadas pelo deputado em relação às que ele apresentou no plenário, ponderado pelo papel de autoria e pela margem de aprovação.
+
+> **Visão Geral do Deputado:** além das 7 perguntas originais, o dashboard inclui uma tela agregadora que consolida todas as análises por deputado individual — gastos, eixos de atuação, padrão de votação, influência e escolaridade em um único painel.
 
 ---
 
 ## Endpoints da API
 
-Toda a lógica analítica está implementada como endpoints FastAPI em `back-end/routers/`. A API sobe na porta **8000**; o Vite faz proxy automático de `/q1` … `/q7` para ela. Documentação interativa completa em **http://localhost:8000/docs**.
+Toda a lógica analítica está implementada como endpoints FastAPI em `back-end/routers/`. A API sobe na porta **8000**; o Vite faz proxy automático de `/q1` … `/q8` para ela. Documentação interativa completa em **http://localhost:8000/docs**.
 
 ### Erros HTTP
 
@@ -655,6 +661,16 @@ Toda a lógica analítica está implementada como endpoints FastAPI em `back-end
 | `404 Not Found` | Rota inexistente, ou `/q3/votos` sem resultado para o deputado/tema informado. |
 | `422 Unprocessable Entity` | Parâmetro inválido (tipo errado ou `limit` fora do intervalo permitido) — validado pelo FastAPI/Pydantic. |
 | `500 Internal Server Error` | Erro não tratado. O handler global (`main.py`) retorna JSON `{"detail": "Erro interno do servidor.", "path": "..."}` e registra o traceback no log do servidor. |
+
+### Health e warm-up
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/health` | Health check leve. Retorna `{"status":"ok","db":"<caminho>"}` (200) ou `{"status":"error","detail":"..."}` (503) se o banco não foi encontrado. |
+
+No startup a API pré-computa em background as respostas das telas iniciais (`WARMUP` definido em cada router), armazenando-as no cache em memória. As chamadas subsequentes do front-end são servidas diretamente do cache, sem consultar o banco.
+
+---
 
 ### Paginação e cache
 
@@ -668,14 +684,18 @@ Toda a lógica analítica está implementada como endpoints FastAPI em `back-end
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/q1/gastos-deputados?limit=` | Lista deputados ordenados por `total_gasto` decrescente. `limit` opcional. |
+| `GET` | `/q1/gastos-deputados?limit=&partido=&ano=` | Lista deputados ordenados por `total_gasto` decrescente. `limit`, `partido` e `ano` opcionais. Com filtros, agrega direto de `gasto`; sem filtros usa `vw_gasto_deputado`. |
 | `GET` | `/q1/gastos-detalhados/{deputado_id}` | Gastos do deputado agrupados por categoria CEAP (`txtDescricao`) — ordena pelo total da categoria. Identifica a **categoria de maior gasto** do deputado. |
 | `GET` | `/q1/deputados` | Lista leve (id, nome, foto) para autocomplete de busca. |
+| `GET` | `/q1/filtros` | Listas de `partidos` e `anos` disponíveis para popular os dropdowns do Q1. |
+| `GET` | `/q1/gastos-por-partido?ano=` | Gasto total por partido entre todos os deputados. `ano` opcional. |
+| `GET` | `/q1/gastos-categoria-partido?partido=&ano=` | Gasto de um partido dividido por categoria de despesa. `partido` obrigatório; `ano` opcional. |
 
 **Método de cálculo:**
-- Usa `vw_gasto_deputado`: `SUM(vlrLiquido)` como total gasto e `COUNT(ideDocumento)` como nº de transações por deputado.
-- Partido e UF são extraídos do lançamento mais recente via `ROW_NUMBER() OVER (PARTITION BY idDeCadastro ORDER BY numAno DESC, numMes DESC, ideDocumento DESC)`.
+- Usa `vw_gasto_deputado`: `SUM(vlrLiquido)` como total gasto e `COUNT(ideDocumento)` como nº de transações por deputado (sem filtros de partido/ano).
+- Quando `partido` ou `ano` são informados, agrega diretamente de `gasto` com `WHERE` parametrizado; partido e UF são extraídos via `ROW_NUMBER() OVER (PARTITION BY id ORDER BY numAno DESC, numMes DESC, ideDocumento DESC)` dentro do subconjunto filtrado.
 - `gastos-detalhados` agrupa diretamente em `gasto` por `txtDescricao` (apenas `vlrLiquido > 0`), retornando total, média, ticket máximo e maior fornecedor de cada categoria.
+- `gastos-por-partido` e `gastos-categoria-partido` agregam `gasto` por `sgPartido` / `txtDescricao`, com `COUNT(DISTINCT idDeCadastro)` para nº de deputados distintos.
 
 ---
 
@@ -800,11 +820,12 @@ As sub-questões 6c, 6d e 6e devem retornar o mesmo `num_deputados` por escolari
 
 ---
 
-### Q7 — `/q7` — Ranking de Influência
+### Q7 — `/q7` — Ranking de Influência ( Questão 8)
 
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/q7/influencia?limit=` | Deputados ordenados por `pct_influencia` decrescente (padrão top 50, máx. 513). |
+| `GET` | `/q7/proposicoes-influencia/{deputado_id}` | Proposições aprovadas no plenário que compõem o score do deputado, com `peso`, `margem` e `contribuicao` por proposição. Alimenta o `ProposicoesInfluenciaModal`. Cacheado 1h. |
 
 **Método de cálculo — `vw_influencia` (`back-end/views.py`):**
 
@@ -828,3 +849,28 @@ pct_influencia = 100 × (0,7 × score / MAX(score) + 0,3 × aprovadas / em_pauta
 ```
 
 CTEs utilizadas: `plen_aprovadas`, `dep_pauta`, `dep_score`, `dep_partido`. Apenas deputados com ≥ 1 proposição aprovada entram no ranking.
+
+---
+
+### Q8 — `/q8` — Visão Geral do Deputado ( Não é relacionado à nenhuma questão em específico)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/q8/deputados` | Lista leve (id, nome, foto) de todos os deputados da legislatura para o autocomplete de busca. |
+| `GET` | `/q8/visao-geral/{deputado_id}` | Objeto agregador único com todos os dados do deputado (ver abaixo). Retorna 404 se o deputado não existe na legislatura 2023–2026. Cacheado 1h. |
+
+**Objeto retornado por `/q8/visao-geral/{deputado_id}`:**
+
+| Campo | Origem | Descrição |
+|---|---|---|
+| `id`, `nome`, `urlFoto`, `partido`, `uf` | `vw_gasto_deputado` + `deputado` | Cabeçalho do deputado. |
+| `total_gasto`, `num_transacoes` | `vw_gasto_deputado` | Totais CEAP da legislatura. |
+| `escolaridade`, `escolaridade_ord` | `vw_escolaridade_norm` | Faixa de escolaridade normalizada (0–4). |
+| `gastos_categoria` | `gasto` | Top 10 categorias de despesa com total, média, ticket máximo e maior fornecedor. |
+| `fornecedores` | `gasto` | Top 10 fornecedores com total recebido e nº de transações. |
+| `temas_nuvem` | `tema` + `classificacao` + `autoria` | Temas legislativos de autoria, com nº de proposições (alimenta nuvem). |
+| `palavras_ementas` | `proposicao` + `autoria` | Top 80 palavras das ementas de proposições de autoria (tokenização + stopwords PT-BR). |
+| `votos_por_tema` | `voto` + `pauta` + `classificacao` + `tema` | Contagem de votos por tipo (`Sim`/`Não`/etc.) agrupados por tema. |
+| `influencia` | `vw_influencia` | `score_ponderado`, `pct_influencia`, `em_pauta_plen`, `aprovadas_pelo_dep`, `taxa_aprovacao` (ou `null` se o deputado não aparece no ranking). |
+
+**Nota:** Q8 é um endpoint agregador de visualização que reaproveita a lógica analítica de Q1, Q2, Q3, Q5 e Q7 — mas consolidada por deputado individual, sem ser uma pergunta analítica independente.
