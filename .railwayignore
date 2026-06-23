@@ -1,0 +1,19 @@
+# Exclusões para o upload do backend via `railway up --no-gitignore`
+# O camara-2023-2026.db NAO está aqui — precisa ser enviado para o Railway
+venv/
+dados/
+scripts_limpeza/
+.git/
+.claude/
+.impeccable/
+__pycache__/
+back-end/__pycache__/
+back-end/.claude/
+*.pyc
+*.pyo
+*.log
+etl_log.txt
+server.log
+server_err.log
+camara.db-shm
+camara.db-wal

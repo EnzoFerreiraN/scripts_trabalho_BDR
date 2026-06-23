@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import cache
-from database import get_connection
+from database import get_connection, database_exists, DB_PATH
 from views import init_views
 from routers import q1_gastos, q2_eixo_atuacao, q3_votacao_tema, q4_escolaridade, q5_fornecedores, q6_correlacao, q7_influencia, q8_deputado
 
@@ -45,7 +45,14 @@ def _run_warmup() -> None:
 
 @app.on_event("startup")
 def startup():
-    conn = get_connection()
+    if not database_exists():
+        logger.error(
+            "CRÍTICO: Banco de dados não encontrado em '%s'. "
+            "Verifique se o volume está montado corretamente e o arquivo foi copiado para /data.",
+            DB_PATH,
+        )
+        return
+    conn = get_connection(readonly=False)
     init_views(conn)
     conn.close()
     threading.Thread(target=_run_warmup, daemon=True, name="cache-warmup").start()
@@ -60,6 +67,20 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Erro interno do servidor.", "path": request.url.path},
     )
+
+
+@app.get("/health", tags=["Health"])
+def health():
+    """Health check leve: verifica apenas se o banco de dados existe no volume."""
+    if not database_exists():
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "detail": f"Banco não encontrado em {DB_PATH}",
+            },
+        )
+    return {"status": "ok", "db": str(DB_PATH)}
 
 
 @app.middleware("http")

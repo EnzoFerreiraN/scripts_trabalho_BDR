@@ -1,0 +1,27 @@
+# Excluir tudo que não é necessário para a imagem do backend
+front-end/
+venv/
+dados/
+scripts_limpeza/
+.git/
+.claude/
+.impeccable/
+__pycache__/
+back-end/__pycache__/
+back-end/.claude/
+*.log
+*.pyc
+*.pyo
+etl_log.txt
+etl-2023-2026.py
+baixar_dados.py
+check_db.py
+check_nulls.py
+schema.sql
+package-lock.json
+camara.db-shm
+camara.db-wal
+deploy.md
+README.md
+.gitignore
+.railwayignore

@@ -108,8 +108,9 @@ def _compute_palavras_ementas(partido: str | None) -> list[dict]:
             """,
             {"partido": partido},
         )
-        rows = cur.fetchall()
-        ementas = (r["ementa"] for r in rows)
+        # Itera o cursor diretamente (streaming) em vez de fetchall() para não
+        # materializar todas as ementas do partido de uma vez na RAM.
+        ementas = (r["ementa"] for r in cur)
     else:
         cur.execute("SELECT ementa FROM proposicao WHERE ementa IS NOT NULL AND ementa != ''")
         ementas = (row[0] for row in cur)
@@ -184,8 +185,11 @@ def deputados_por_tema(
 
 
 # Respostas pré-computadas no startup (sem filtro de partido — carga inicial do front).
+# q2:palavras-ementas:all foi removido do warm-up: varre TODAS as ementas do banco
+# (full-scan da tabela proposicao) e seria executado imediatamente no boot, causando
+# um pico de RAM no container de 512 MB. É computado lazily na primeira requisição
+# e cacheado normalmente a partir daí.
 WARMUP = [
-    ("q2:partidos",             _get_partidos),
-    ("q2:ranking-temas:all",    lambda: _compute_ranking_temas(None)),
-    ("q2:palavras-ementas:all", lambda: _compute_palavras_ementas(None)),
+    ("q2:partidos",          _get_partidos),
+    ("q2:ranking-temas:all", lambda: _compute_ranking_temas(None)),
 ]
